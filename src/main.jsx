@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Analytics } from '@vercel/analytics/react'
 import {
   ArrowDown,
   ArrowRight,
@@ -492,6 +493,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <Analytics />
       {/* Toast Notification */}
       {toast && (
         <div className="toast-banner" role="status" aria-live="polite">
