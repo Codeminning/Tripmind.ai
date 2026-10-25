@@ -286,35 +286,36 @@ export default function App() {
         </a>
 
         <nav className={mobileMenu ? 'nav-links nav-open' : 'nav-links'}>
-          <a href="#how-it-works" onClick={() => setMobileMenu(false)}>How it works</a>
+          <a href="#how-it-works" onClick={() => setMobileMenu(false)}>How It Works</a>
           <a href="#inspiration" onClick={() => setMobileMenu(false)}>Destinations</a>
-          {currentUser ? (
-            <button
-              type="button"
-              className="nav-saved-btn"
-              style={{ background: '#244a3a', color: '#ffffff', borderColor: '#244a3a' }}
-              onClick={() => {
-                navigateToView('dashboard')
-                setMobileMenu(false)
-              }}
-            >
-              <LayoutDashboard size={14} />
-              <span>My Dashboard</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="nav-saved-btn"
-              style={{ background: 'transparent', borderColor: 'rgba(36, 74, 58, 0.4)', color: 'var(--green)' }}
-              onClick={() => {
-                navigateToView('login')
-                setMobileMenu(false)
-              }}
-            >
-              <LogIn size={14} />
-              <span>Sign In</span>
-            </button>
-          )}
+          <a href="#why-tripmind" onClick={() => setMobileMenu(false)}>Why TripMind</a>
+          <div className="mobile-drawer-footer">
+            {currentUser ? (
+              <button
+                type="button"
+                className="mobile-drawer-btn"
+                onClick={() => {
+                  navigateToView('dashboard')
+                  setMobileMenu(false)
+                }}
+              >
+                <LayoutDashboard size={15} />
+                <span>My Dashboard</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="mobile-drawer-btn"
+                onClick={() => {
+                  navigateToView('login')
+                  setMobileMenu(false)
+                }}
+              >
+                <LogIn size={15} />
+                <span>Sign In</span>
+              </button>
+            )}
+          </div>
         </nav>
 
         <div className="nav-right">
@@ -368,28 +369,20 @@ export default function App() {
           ) : (
             <button
               type="button"
-              className="nav-auth-btn"
+              className="nav-signin-link"
               onClick={() => navigateToView('login')}
             >
-              <LogIn size={15} />
-              <span>Sign In</span>
+              Sign In
             </button>
           )}
 
           <button
             type="button"
-            className="nav-cta"
+            className="nav-primary-cta"
             onClick={() => navigateToView(currentUser ? 'dashboard' : 'login')}
           >
-            {currentUser ? (
-              <>
-                Open Dashboard <ArrowUpRight size={16} />
-              </>
-            ) : (
-              <>
-                Get Started <ArrowUpRight size={16} />
-              </>
-            )}
+            <span>{currentUser ? 'My Dashboard' : 'Start Planning'}</span>
+            <ArrowRight size={15} />
           </button>
 
           <button
@@ -419,15 +412,23 @@ export default function App() {
             </p>
             <div className="hero-actions">
               {currentUser ? (
-                <button
-                  type="button"
-                  className="button button-dark"
-                  onClick={() => navigateToView('dashboard')}
-                >
-                  <LayoutDashboard size={17} />
-                  <span>Plan in My Dashboard</span>
-                  <ArrowRight size={17} />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="button button-dark"
+                    onClick={() => navigateToView('dashboard')}
+                  >
+                    <LayoutDashboard size={17} />
+                    <span>Open My Dashboard</span>
+                    <ArrowRight size={17} />
+                  </button>
+                  <a
+                    href="#inspiration"
+                    className="button button-secondary-outline"
+                  >
+                    <span>Explore Destinations</span>
+                  </a>
+                </>
               ) : (
                 <>
                   <button
@@ -435,21 +436,19 @@ export default function App() {
                     className="button button-dark"
                     onClick={() => navigateToView('login')}
                   >
-                    <span>Start Planning — Free</span>
+                    <span>Start Planning</span>
                     <ArrowRight size={17} />
                   </button>
-                  <button
-                    type="button"
-                    className="text-link"
-                    onClick={() => navigateToView('login')}
-                    style={{ background: 'none', border: 0, cursor: 'pointer' }}
+                  <a
+                    href="#inspiration"
+                    className="button button-secondary-outline"
                   >
-                    <LogIn size={15} />
-                    <span>Sign in to your dashboard</span>
-                  </button>
+                    <span>Explore Destinations</span>
+                  </a>
                 </>
               )}
             </div>
+
             <div className="hero-proof">
               <div className="avatar-stack">
                 <span>J</span>
@@ -597,91 +596,59 @@ export default function App() {
           </div>
         </section>
 
-        {/* Personal Workspace Callout Banner */}
-        <section className="dashboard-cta-banner section-container">
-          <div className="dashboard-cta-inner">
-            <div className="dashboard-cta-content">
-              <div className="eyebrow" style={{ color: '#e9a46d' }}>
-                <Sparkles size={14} /> YOUR PERSONAL TRAVEL WORKSPACE
-              </div>
-              <h2>Ready to plan your next journey?</h2>
-              <p>
-                Every traveller deserves their own dedicated workspace. Create an account or sign in to 
-                generate personalized day-by-day itineraries, track budgets, and organize your saved journeys.
-              </p>
-              <div className="dashboard-cta-buttons">
-                {currentUser ? (
-                  <button
-                    type="button"
-                    className="button button-dark"
-                    onClick={() => navigateToView('dashboard')}
-                  >
-                    <LayoutDashboard size={18} />
-                    <span>Go to My Dashboard & Planner</span>
-                    <ArrowRight size={16} />
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="button button-dark"
-                      onClick={() => navigateToView('login')}
-                    >
-                      <Sparkles size={18} />
-                      <span>Get Started — Sign Up Free</span>
-                      <ArrowRight size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-outline"
-                      onClick={() => navigateToView('login')}
-                      style={{ color: '#ffffff', borderColor: 'rgba(255, 255, 255, 0.4)' }}
-                    >
-                      <LogIn size={16} />
-                      <span>Sign In to Account</span>
-                    </button>
-                  </>
-                )}
-              </div>
+        {/* Unified Editorial Call to Action */}
+        <section className="closing section-container" id="why-tripmind">
+          <div className="closing-content">
+            <div className="closing-eyebrow">
+              <Sparkles size={14} /> YOUR PERSONAL TRAVEL WORKSPACE
             </div>
-            <div className="dashboard-cta-badges">
-              <div className="cta-feature-pill">
-                <CheckCircle2 size={16} color="#dce8d9" />
+            <h2>Ready to plan your next journey?</h2>
+            <p>
+              Experience travel planning without the stress. Receive intelligent day-by-day itineraries,
+              curated dining, transparent budget estimates, and offline-ready schedules.
+            </p>
+            <div className="closing-perks-grid">
+              <div className="closing-perk">
+                <CheckCircle2 size={16} className="perk-icon" />
                 <span>Tailored Gemini AI Itineraries</span>
               </div>
-              <div className="cta-feature-pill">
-                <CheckCircle2 size={16} color="#dce8d9" />
-                <span>Individual Saved Trip Vaults</span>
+              <div className="closing-perk">
+                <CheckCircle2 size={16} className="perk-icon" />
+                <span>Personal Saved Trips Vault</span>
               </div>
-              <div className="cta-feature-pill">
-                <CheckCircle2 size={16} color="#dce8d9" />
-                <span>Real-time Budget & Check-off Tracker</span>
+              <div className="closing-perk">
+                <CheckCircle2 size={16} className="perk-icon" />
+                <span>Real-Time Budget Breakdown</span>
               </div>
-              <div className="cta-feature-pill">
-                <CheckCircle2 size={16} color="#dce8d9" />
-                <span>PDF Export & Easy Itinerary Sharing</span>
+              <div className="closing-perk">
+                <CheckCircle2 size={16} className="perk-icon" />
+                <span>PDF Export & Print-Ready Plans</span>
               </div>
             </div>
           </div>
-        </section>
 
-        {/* Closing Banner */}
-        <section className="closing section-container">
-          <div>
-            <span className="closing-spark">✳</span>
-            <h2>Take the scenic route.</h2>
-            <p>Because the most memorable stories rarely come from rushing.</p>
+          <div className="closing-action-box">
+            <button
+              type="button"
+              className="button button-light-prominent"
+              onClick={() => navigateToView(currentUser ? 'dashboard' : 'login')}
+            >
+              <span>{currentUser ? 'Open Travel Dashboard' : 'Start Planning for Free'}</span>
+              <ArrowRight size={16} />
+            </button>
+            {!currentUser && (
+              <button
+                type="button"
+                className="closing-sub-link"
+                onClick={() => navigateToView('login')}
+              >
+                <span>Already have an account? <strong>Sign In</strong></span>
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            className="button button-light"
-            onClick={() => navigateToView(currentUser ? 'dashboard' : 'login')}
-          >
-            <span>{currentUser ? 'Enter Travel Dashboard' : 'Sign Up to Start Planning'}</span>
-            <ArrowUpRight size={16} />
-          </button>
           <span className="closing-mark">TRIPMIND / 2026</span>
         </section>
+
       </main>
 
       {/* Footer */}
