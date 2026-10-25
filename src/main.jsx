@@ -34,8 +34,23 @@ import {
   Camera,
   Landmark,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  LogIn,
+  LogOut,
+  User,
+  Sliders,
+  LayoutDashboard
 } from 'lucide-react'
+import LoginPage from './components/LoginPage'
+import DashboardView from './components/DashboardView'
+import {
+  getActiveSession,
+  setActiveSession,
+  logOutUser,
+  getUserTrips,
+  saveUserTrip,
+  deleteUserTrip
+} from './auth'
 import './styles.css'
 
 const allInterests = [
@@ -223,6 +238,15 @@ function generateLocalFallback(form) {
 }
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState(() => getActiveSession())
+  const [currentView, setCurrentView] = useState(() => {
+    const hash = window.location.hash
+    if (hash === '#/login' || hash === '#login') return 'login'
+    if (hash === '#/dashboard' || hash === '#dashboard') return 'dashboard'
+    return 'landing'
+  })
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
+
   const [form, setForm] = useState({
     destination: 'Kyoto, Japan',
     startDate: '',
@@ -244,18 +268,49 @@ export default function App() {
   const [checkedActivities, setCheckedActivities] = useState({})
   const [aiStatus, setAiStatus] = useState(null)
 
-  // Load saved trips from localStorage on mount
+  // Sync saved trips based on logged-in user or local guest storage
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('tripmind_saved_trips')
-      if (stored) {
-        setSavedTrips(JSON.parse(stored))
+    if (currentUser) {
+      const userSaved = getUserTrips(currentUser.id)
+      setSavedTrips(userSaved)
+    } else {
+      try {
+        const stored = localStorage.getItem('tripmind_saved_trips')
+        if (stored) {
+          setSavedTrips(JSON.parse(stored))
+        } else {
+          setSavedTrips([])
+        }
+      } catch (e) {
+        console.warn('Could not load guest trips:', e)
       }
-    } catch (e) {
-      console.warn('Could not load saved trips:', e)
     }
+  }, [currentUser])
 
-    // Ping API health
+  // Handle URL hash changes for direct routing & browser back/forward
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash
+      if (hash === '#/login' || hash === '#login') {
+        setCurrentView('login')
+      } else if (hash === '#/dashboard' || hash === '#dashboard') {
+        const session = getActiveSession()
+        if (session) {
+          setCurrentUser(session)
+          setCurrentView('dashboard')
+        } else {
+          setCurrentView('login')
+        }
+      } else if (hash === '#/home' || hash === '#home' || hash === '') {
+        setCurrentView('landing')
+      }
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  // Ping API health on mount
+  useEffect(() => {
     fetch('/api/health')
       .then(res => res.json())
       .then(data => {
@@ -290,7 +345,48 @@ export default function App() {
 
   const showToast = (message) => {
     setToast(message)
-    setTimeout(() => setToast(null), 3200)
+    setTimeout(() => setToast(null), 3400)
+  }
+
+  const navigateToView = (view) => {
+    setCurrentView(view)
+    setUserDropdownOpen(false)
+    setMobileMenu(false)
+    if (view === 'login') {
+      window.location.hash = '/login'
+    } else if (view === 'dashboard') {
+      window.location.hash = '/dashboard'
+    } else {
+      window.location.hash = '/home'
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleLoginSuccess = (user, welcomeMsg) => {
+    setCurrentUser(user)
+    showToast(welcomeMsg || `Welcome back, ${user.name}! 🌿`)
+    navigateToView('dashboard')
+  }
+
+  const handleLogout = () => {
+    logOutUser()
+    setCurrentUser(null)
+    setUserDropdownOpen(false)
+    showToast('You have signed out.')
+    navigateToView('landing')
+  }
+
+  const handleLoadTripToMainPlanner = (trip) => {
+    setItinerary(trip)
+    if (trip.formSnapshot) {
+      setForm(trip.formSnapshot)
+    }
+    setCurrentView('landing')
+    window.location.hash = '/home'
+    showToast(`Loaded ${trip.destination} into planner!`)
+    setTimeout(() => {
+      document.getElementById('itinerary')?.scrollIntoView({ behavior: 'smooth' })
+    }, 150)
   }
 
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }))
@@ -316,36 +412,63 @@ export default function App() {
     if (!itinerary) return
     let updated
     if (isCurrentTripSaved) {
-      updated = savedTrips.filter(
-        t => !(t.destination.toLowerCase() === itinerary.destination.toLowerCase() &&
-               t.days?.length === itinerary.days?.length)
-      )
+      if (currentUser) {
+        const existing = getUserTrips(currentUser.id)
+        const match = existing.find(
+          t => t.destination.toLowerCase() === itinerary.destination.toLowerCase() &&
+               t.days?.length === itinerary.days?.length
+        )
+        if (match) {
+          updated = deleteUserTrip(currentUser.id, match.id)
+        } else {
+          updated = existing
+        }
+      } else {
+        updated = savedTrips.filter(
+          t => !(t.destination.toLowerCase() === itinerary.destination.toLowerCase() &&
+                 t.days?.length === itinerary.days?.length)
+        )
+        try {
+          localStorage.setItem('tripmind_saved_trips', JSON.stringify(updated))
+        } catch (e) {}
+      }
       showToast('Trip removed from saved plans.')
     } else {
       const tripToSave = {
         ...itinerary,
-        id: Date.now().toString(),
+        id: `trip_${Date.now()}`,
         savedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        formSnapshot: { ...form }
+        formSnapshot: { ...form },
+        status: 'Upcoming'
       }
-      updated = [tripToSave, ...savedTrips]
-      showToast('✨ Trip saved to your device!')
+      if (currentUser) {
+        updated = saveUserTrip(currentUser.id, tripToSave)
+        showToast(`✨ Plan saved to ${currentUser.name}'s Dashboard!`)
+      } else {
+        updated = [tripToSave, ...savedTrips]
+        try {
+          localStorage.setItem('tripmind_saved_trips', JSON.stringify(updated))
+        } catch (e) {
+          console.warn('Storage save error:', e)
+        }
+        showToast('✨ Trip saved to your device! Sign in to sync across devices.')
+      }
     }
     setSavedTrips(updated)
-    try {
-      localStorage.setItem('tripmind_saved_trips', JSON.stringify(updated))
-    } catch (e) {
-      console.warn('Storage save error:', e)
-    }
   }
 
   const deleteSavedTrip = (id, e) => {
     e?.stopPropagation()
-    const updated = savedTrips.filter(t => t.id !== id)
+    let updated
+    if (currentUser) {
+      updated = deleteUserTrip(currentUser.id, id)
+    } else {
+      updated = savedTrips.filter(t => t.id !== id)
+      try {
+        localStorage.setItem('tripmind_saved_trips', JSON.stringify(updated))
+      } catch (err) {}
+    }
     setSavedTrips(updated)
-    try {
-      localStorage.setItem('tripmind_saved_trips', JSON.stringify(updated))
-    } catch (err) {}
     showToast('Plan deleted.')
   }
 
@@ -491,6 +614,79 @@ export default function App() {
     }))
   }, [itinerary, activeCategoryFilter])
 
+  // Close user dropdown popover when clicking outside
+  useEffect(() => {
+    const handleDocumentClick = (e) => {
+      if (!e.target.closest('.user-nav-dropdown-wrapper')) {
+        setUserDropdownOpen(false)
+      }
+    }
+    if (userDropdownOpen) {
+      document.addEventListener('click', handleDocumentClick)
+    }
+    return () => document.removeEventListener('click', handleDocumentClick)
+  }, [userDropdownOpen])
+
+  // VIEW 1: Dedicated Login / Register Page
+  if (currentView === 'login') {
+    return (
+      <div className="app-shell">
+        <Analytics />
+        {toast && (
+          <div className="toast-banner" role="status" aria-live="polite">
+            <Sparkles size={16} />
+            <span>{toast}</span>
+          </div>
+        )}
+        <LoginPage
+          onLoginSuccess={handleLoginSuccess}
+          onCancel={() => navigateToView('landing')}
+        />
+      </div>
+    )
+  }
+
+  // VIEW 2: Individual User Dashboard & Planner Workspace
+  if (currentView === 'dashboard') {
+    if (!currentUser) {
+      return (
+        <div className="app-shell">
+          <Analytics />
+          {toast && (
+            <div className="toast-banner" role="status" aria-live="polite">
+              <Sparkles size={16} />
+              <span>{toast}</span>
+            </div>
+          )}
+          <LoginPage
+            onLoginSuccess={handleLoginSuccess}
+            onCancel={() => navigateToView('landing')}
+          />
+        </div>
+      )
+    }
+
+    return (
+      <div className="app-shell">
+        <Analytics />
+        {toast && (
+          <div className="toast-banner" role="status" aria-live="polite">
+            <Sparkles size={16} />
+            <span>{toast}</span>
+          </div>
+        )}
+        <DashboardView
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onNavigateExplore={() => navigateToView('landing')}
+          onLoadTripToMainPlanner={handleLoadTripToMainPlanner}
+          showToast={showToast}
+        />
+      </div>
+    )
+  }
+
+  // VIEW 3: Main Public Landing & Explore Page
   return (
     <div className="app-shell">
       <Analytics />
@@ -504,7 +700,15 @@ export default function App() {
 
       {/* Navigation */}
       <header className="nav-wrap">
-        <a className="brand" href="#home" aria-label="TripMind AI home">
+        <a
+          className="brand"
+          href="#home"
+          onClick={(e) => {
+            e.preventDefault()
+            navigateToView('landing')
+          }}
+          aria-label="TripMind AI home"
+        >
           <span className="brand-mark">
             <Compass size={21} strokeWidth={2.2} />
           </span>
@@ -517,6 +721,33 @@ export default function App() {
           <a href="#how-it-works" onClick={() => setMobileMenu(false)}>How it works</a>
           <a href="#inspiration" onClick={() => setMobileMenu(false)}>Destinations</a>
           <a href="#planner" onClick={() => setMobileMenu(false)}>Trip planner</a>
+          {currentUser ? (
+            <button
+              type="button"
+              className="nav-saved-btn"
+              style={{ background: '#244a3a', color: '#ffffff', borderColor: '#244a3a' }}
+              onClick={() => {
+                navigateToView('dashboard')
+                setMobileMenu(false)
+              }}
+            >
+              <LayoutDashboard size={14} />
+              <span>My Dashboard</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="nav-saved-btn"
+              style={{ background: 'transparent', borderColor: 'rgba(36, 74, 58, 0.4)', color: 'var(--green)' }}
+              onClick={() => {
+                navigateToView('login')
+                setMobileMenu(false)
+              }}
+            >
+              <LogIn size={14} />
+              <span>Sign In</span>
+            </button>
+          )}
           {savedTrips.length > 0 && (
             <button
               className="nav-saved-btn"
@@ -543,6 +774,87 @@ export default function App() {
               <span>{savedTrips.length}</span>
             </button>
           )}
+
+          {currentUser ? (
+            <div className="user-nav-dropdown-wrapper">
+              <button
+                type="button"
+                className={`user-nav-pill ${userDropdownOpen ? 'active' : ''}`}
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                aria-expanded={userDropdownOpen}
+                aria-label="User account menu"
+              >
+                {currentUser.avatar ? (
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.name}
+                    className="nav-avatar-img"
+                  />
+                ) : (
+                  <span className="nav-avatar-initials">{currentUser.initials || 'U'}</span>
+                )}
+                <span className="nav-user-name">{currentUser.name}</span>
+                <ChevronDown size={14} color="#788273" />
+              </button>
+
+              {userDropdownOpen && (
+                <div className="user-dropdown-popover">
+                  <div className="user-dropdown-header">
+                    <strong>{currentUser.name}</strong>
+                    <small>{currentUser.email}</small>
+                  </div>
+                  <button
+                    type="button"
+                    className="dropdown-item-btn"
+                    onClick={() => navigateToView('dashboard')}
+                  >
+                    <LayoutDashboard size={15} />
+                    <span>My Dashboard & Planner</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="dropdown-item-btn"
+                    onClick={() => {
+                      setUserDropdownOpen(false)
+                      setShowSavedModal(true)
+                    }}
+                  >
+                    <FolderHeart size={15} />
+                    <span>Saved Itineraries ({savedTrips.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="dropdown-item-btn"
+                    onClick={() => {
+                      setUserDropdownOpen(false)
+                      document.getElementById('planner')?.scrollIntoView({ behavior: 'smooth' })
+                    }}
+                  >
+                    <Sparkles size={15} />
+                    <span>Quick Trip Builder</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="dropdown-item-btn logout"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={15} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="nav-auth-btn"
+              onClick={() => navigateToView('login')}
+            >
+              <LogIn size={15} />
+              <span>Sign In</span>
+            </button>
+          )}
+
           <a className="nav-cta" href="#planner">
             Plan a trip <ArrowUpRight size={16} />
           </a>
@@ -575,9 +887,28 @@ export default function App() {
               <a className="button button-dark" href="#planner">
                 Plan my trip <ArrowRight size={17} />
               </a>
-              <a className="text-link" href="#how-it-works">
-                See how it works <ArrowDown size={15} />
-              </a>
+              {currentUser ? (
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() => navigateToView('dashboard')}
+                  style={{ background: 'none', border: 0, cursor: 'pointer', color: 'var(--green)' }}
+                >
+                  <LayoutDashboard size={15} />
+                  <span>My Dashboard</span>
+                  <ArrowRight size={14} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() => navigateToView('login')}
+                  style={{ background: 'none', border: 0, cursor: 'pointer' }}
+                >
+                  <LogIn size={15} />
+                  <span>Sign in to your dashboard</span>
+                </button>
+              )}
             </div>
             <div className="hero-proof">
               <div className="avatar-stack">
