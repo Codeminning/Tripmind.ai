@@ -220,26 +220,59 @@ export function getUserTrips(userId) {
   }
 }
 
+// Sync all user trips from Neon DB to local cache
+export async function syncTripsFromNeon(userId) {
+  if (!userId) return []
+  try {
+    const res = await fetch(`/api/trips/${encodeURIComponent(userId)}`)
+    if (res.ok) {
+      const remoteTrips = await res.json()
+      if (Array.isArray(remoteTrips)) {
+        localStorage.setItem(`${USER_TRIPS_PREFIX}${userId}`, JSON.stringify(remoteTrips))
+        return remoteTrips
+      }
+    }
+  } catch (err) {
+    console.warn('Trips sync from Neon DB failed, using local cache:', err)
+  }
+  return getUserTrips(userId)
+}
+
 export function saveUserTrip(userId, trip) {
   if (!userId || !trip) return []
   try {
     const existing = getUserTrips(userId)
-    // Check if trip already exists by ID or destination
-    const existingIdx = existing.findIndex(t => t.id === trip.id)
+    const tripToSave = {
+      ...trip,
+      id: trip.id || `trip_${Date.now()}`,
+      savedAt: trip.savedAt || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      status: trip.status || 'Upcoming'
+    }
+
+    const existingIdx = existing.findIndex(t => t.id === tripToSave.id)
     let updated
     if (existingIdx >= 0) {
       updated = [...existing]
-      updated[existingIdx] = { ...trip, updatedAt: new Date().toISOString() }
+      updated[existingIdx] = { ...tripToSave, updatedAt: new Date().toISOString() }
     } else {
-      const newTrip = {
-        ...trip,
-        id: trip.id || `trip_${Date.now()}`,
-        savedAt: trip.savedAt || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        status: trip.status || 'Upcoming'
-      }
-      updated = [newTrip, ...existing]
+      updated = [tripToSave, ...existing]
     }
     localStorage.setItem(`${USER_TRIPS_PREFIX}${userId}`, JSON.stringify(updated))
+
+    // Persist to Neon Postgres in background
+    fetch('/api/trips', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, trip: tripToSave })
+    })
+      .then(r => r.json())
+      .then(remoteTrips => {
+        if (Array.isArray(remoteTrips)) {
+          localStorage.setItem(`${USER_TRIPS_PREFIX}${userId}`, JSON.stringify(remoteTrips))
+        }
+      })
+      .catch(e => console.warn('Neon save trip sync error:', e))
+
     return updated
   } catch (e) {
     console.error('Failed to save user trip:', e)
@@ -253,6 +286,12 @@ export function deleteUserTrip(userId, tripId) {
     const existing = getUserTrips(userId)
     const updated = existing.filter(t => t.id !== tripId)
     localStorage.setItem(`${USER_TRIPS_PREFIX}${userId}`, JSON.stringify(updated))
+
+    // Remove from Neon Postgres in background
+    fetch(`/api/trips/${encodeURIComponent(userId)}/${encodeURIComponent(tripId)}`, {
+      method: 'DELETE'
+    }).catch(e => console.warn('Neon delete trip sync error:', e))
+
     return updated
   } catch (e) {
     console.error('Failed to delete user trip:', e)
@@ -264,8 +303,18 @@ export function updateUserTrip(userId, tripId, updates) {
   if (!userId || !tripId) return []
   try {
     const existing = getUserTrips(userId)
+    const tripToUpdate = existing.find(t => t.id === tripId)
     const updated = existing.map(t => (t.id === tripId ? { ...t, ...updates } : t))
     localStorage.setItem(`${USER_TRIPS_PREFIX}${userId}`, JSON.stringify(updated))
+
+    if (tripToUpdate) {
+      fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, trip: { ...tripToUpdate, ...updates } })
+      }).catch(e => console.warn('Neon update trip sync error:', e))
+    }
+
     return updated
   } catch (e) {
     console.error('Failed to update trip:', e)
@@ -273,40 +322,61 @@ export function updateUserTrip(userId, tripId, updates) {
   }
 }
 
-// User Auth Operations
-export function authenticateWithEmail(email, password) {
-  const users = getStoredUsers()
+// User Auth Operations (Backed by Neon Postgres)
+export async function authenticateWithEmail(email, password) {
   const cleanEmail = (email || '').trim().toLowerCase()
-  const user = users.find(u => u.email.toLowerCase() === cleanEmail)
 
-  if (!user) {
-    throw new Error('No account found with this email address. Please check or sign up.')
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: cleanEmail, password })
+    })
+
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Login failed.')
+    }
+
+    const session = data.user
+    setActiveSession(session)
+    // Synchronize trips from Neon into local cache
+    syncTripsFromNeon(session.id)
+    return session
+  } catch (err) {
+    // If network or server error, check local stored demo accounts
+    console.warn('Backend login unavailable, checking local fallback:', err.message)
+    const users = getStoredUsers()
+    const user = users.find(u => u.email.toLowerCase() === cleanEmail)
+
+    if (!user) {
+      throw new Error(err.message || 'No account found with this email address. Please sign up.')
+    }
+
+    if (user.password !== password) {
+      throw new Error('Incorrect password. Please try again.')
+    }
+
+    const session = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      initials: user.initials,
+      travelVibe: user.travelVibe || 'Thoughtful Explorer',
+      defaultBudget: user.defaultBudget || 'Mid-range',
+      defaultTravelers: user.defaultTravelers || 2,
+      favoriteInterests: user.favoriteInterests || ['Food & cafés', 'Culture & heritage'],
+      authProvider: 'email',
+      loggedInAt: new Date().toISOString()
+    }
+
+    setActiveSession(session)
+    return session
   }
-
-  if (user.password !== password) {
-    throw new Error('Incorrect password. Please try again.')
-  }
-
-  const session = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    avatar: user.avatar,
-    initials: user.initials,
-    travelVibe: user.travelVibe || 'Thoughtful Explorer',
-    defaultBudget: user.defaultBudget || 'Mid-range',
-    defaultTravelers: user.defaultTravelers || 2,
-    favoriteInterests: user.favoriteInterests || ['Food & cafés', 'Culture & heritage'],
-    authProvider: 'email',
-    loggedInAt: new Date().toISOString()
-  }
-
-  setActiveSession(session)
-  return session
 }
 
-export function registerWithEmail({ name, email, password, travelVibe }) {
-  const users = getStoredUsers()
+export async function registerWithEmail({ name, email, password, travelVibe }) {
   const cleanEmail = (email || '').trim().toLowerCase()
   const cleanName = (name || '').trim()
 
@@ -314,59 +384,122 @@ export function registerWithEmail({ name, email, password, travelVibe }) {
   if (!cleanEmail || !cleanEmail.includes('@')) throw new Error('Please enter a valid email address.')
   if (!password || password.length < 6) throw new Error('Password must be at least 6 characters.')
 
-  if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
-    throw new Error('An account with this email already exists. Please sign in instead.')
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: cleanName, email: cleanEmail, password, travelVibe })
+    })
+
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Registration failed.')
+    }
+
+    const session = data.user
+    setActiveSession(session)
+    return session
+  } catch (err) {
+    console.warn('Backend registration unavailable, using local fallback:', err.message)
+    const users = getStoredUsers()
+    if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
+      throw new Error('An account with this email already exists. Please sign in instead.')
+    }
+
+    const nameParts = cleanName.split(' ')
+    const initials = nameParts.length > 1 
+      ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+      : cleanName.slice(0, 2).toUpperCase()
+
+    const newUser = {
+      id: `user_${Date.now()}`,
+      name: cleanName,
+      email: cleanEmail,
+      password,
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}&backgroundColor=244a3a&textColor=ffffff`,
+      initials,
+      travelVibe: travelVibe || 'Slow & Curious Traveler',
+      defaultBudget: 'Mid-range',
+      defaultTravelers: 2,
+      favoriteInterests: ['Food & cafés', 'Culture & heritage', 'Slow travel'],
+      createdAt: new Date().toISOString().split('T')[0]
+    }
+
+    saveStoredUsers([...users, newUser])
+
+    const session = {
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      avatar: newUser.avatar,
+      initials: newUser.initials,
+      travelVibe: newUser.travelVibe,
+      defaultBudget: newUser.defaultBudget,
+      defaultTravelers: newUser.defaultTravelers,
+      favoriteInterests: newUser.favoriteInterests,
+      authProvider: 'email',
+      loggedInAt: new Date().toISOString()
+    }
+
+    setActiveSession(session)
+    return session
   }
-
-  const nameParts = cleanName.split(' ')
-  const initials = nameParts.length > 1 
-    ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
-    : cleanName.slice(0, 2).toUpperCase()
-
-  const newUser = {
-    id: `user_${Date.now()}`,
-    name: cleanName,
-    email: cleanEmail,
-    password,
-    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}&backgroundColor=244a3a&textColor=ffffff`,
-    initials,
-    travelVibe: travelVibe || 'Slow & Curious Traveler',
-    defaultBudget: 'Mid-range',
-    defaultTravelers: 2,
-    favoriteInterests: ['Food & cafés', 'Culture & heritage', 'Slow travel'],
-    createdAt: new Date().toISOString().split('T')[0]
-  }
-
-  const updatedUsers = [...users, newUser]
-  saveStoredUsers(updatedUsers)
-
-  const session = {
-    id: newUser.id,
-    name: newUser.name,
-    email: newUser.email,
-    avatar: newUser.avatar,
-    initials: newUser.initials,
-    travelVibe: newUser.travelVibe,
-    defaultBudget: newUser.defaultBudget,
-    defaultTravelers: newUser.defaultTravelers,
-    favoriteInterests: newUser.favoriteInterests,
-    authProvider: 'email',
-    loggedInAt: new Date().toISOString()
-  }
-
-  setActiveSession(session)
-  return session
 }
 
-export function authenticateWithGoogle(customProfile = null) {
-  // If user provided a custom profile or standard Google profile
+export function parseJwt(token) {
+  try {
+    const base64Url = token.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    return JSON.parse(jsonPayload)
+  } catch (e) {
+    return null
+  }
+}
+
+export async function authenticateWithGoogleCredential(credentialToken) {
+  const payload = parseJwt(credentialToken)
+  if (!payload || !payload.email) {
+    throw new Error('Could not verify Google credential.')
+  }
+  return authenticateWithGoogle({
+    name: payload.name || payload.given_name || payload.email.split('@')[0],
+    email: payload.email,
+    avatar: payload.picture,
+    initials: (payload.name || payload.email).slice(0, 2).toUpperCase()
+  })
+}
+
+export async function authenticateWithGoogle(customProfile = null) {
   const profile = customProfile || {
-    name: 'Julian Thorne',
-    email: 'julian.thorne@gmail.com',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
-    initials: 'JT'
+    name: 'Dhyanesh Visakan',
+    email: 'dhyanesh.visakan@gmail.com',
+    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Dhyanesh%20Visakan&backgroundColor=244a3a&textColor=ffffff',
+    initials: 'DV'
   }
 
+  try {
+    const res = await fetch('/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profile)
+    })
+    const data = await res.json()
+    if (res.ok && data.user) {
+      setActiveSession(data.user)
+      syncTripsFromNeon(data.user.id)
+      return data.user
+    }
+  } catch (e) {
+    console.warn('Neon Google auth failed, falling back locally:', e)
+  }
+
+  // Local fallback
   const users = getStoredUsers()
   let user = users.find(u => u.email.toLowerCase() === profile.email.toLowerCase())
 
@@ -375,12 +508,12 @@ export function authenticateWithGoogle(customProfile = null) {
       id: `user_google_${Date.now()}`,
       name: profile.name,
       email: profile.email,
-      avatar: profile.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile.name)}`,
+      avatar: profile.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile.name)}&backgroundColor=244a3a&textColor=ffffff`,
       initials: profile.initials || profile.name.slice(0, 2).toUpperCase(),
-      travelVibe: 'Curious Explorer',
+      travelVibe: 'Food & Culinary Explorer',
       defaultBudget: 'Mid-range',
       defaultTravelers: 2,
-      favoriteInterests: ['Food & cafés', 'Nature & outdoors', 'Art & design'],
+      favoriteInterests: ['Food & cafés', 'Culture & heritage', 'Slow travel'],
       authProvider: 'google',
       createdAt: new Date().toISOString().split('T')[0]
     }
@@ -393,7 +526,7 @@ export function authenticateWithGoogle(customProfile = null) {
     email: user.email,
     avatar: user.avatar,
     initials: user.initials,
-    travelVibe: user.travelVibe || 'Curious Explorer',
+    travelVibe: user.travelVibe || 'Food & Culinary Explorer',
     defaultBudget: user.defaultBudget || 'Mid-range',
     defaultTravelers: user.defaultTravelers || 2,
     favoriteInterests: user.favoriteInterests || ['Food & cafés'],
@@ -420,10 +553,19 @@ export function updateUserProfile(userId, updates) {
   saveStoredUsers(updatedUsers)
 
   const currentSession = getActiveSession()
+  let newSession = currentSession
   if (currentSession && currentSession.id === userId) {
-    const newSession = { ...currentSession, ...updates }
+    newSession = { ...currentSession, ...updates }
     setActiveSession(newSession)
-    return newSession
   }
-  return currentSession
+
+  // Sync to Neon DB
+  fetch('/api/auth/profile', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, ...updates })
+  }).catch(e => console.warn('Neon profile update sync failed:', e))
+
+  return newSession
 }
+

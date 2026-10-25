@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   Compass,
   Sparkles,
@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import {
   getUserTrips,
+  syncTripsFromNeon,
   saveUserTrip,
   deleteUserTrip,
   updateUserTrip,
@@ -52,14 +53,15 @@ export default function DashboardView({
   currentUser,
   onLogout,
   onNavigateExplore,
-  onLoadTripToMainPlanner,
   showToast
 }) {
-  const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'planner' | 'trips' | 'profile'
+  const [activeTab, setActiveTab] = useState('planner') // Default to 'planner' so they can plan right away!
   const [userTrips, setUserTrips] = useState(() => getUserTrips(currentUser.id))
   const [selectedTrip, setSelectedTrip] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'Upcoming' | 'Dream Wishlist'
+  const [checkedActivities, setCheckedActivities] = useState({})
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState('all')
 
   // Individual Planner State inside the dashboard
   const [dashboardForm, setDashboardForm] = useState({
@@ -78,6 +80,49 @@ export default function DashboardView({
   const [profileVibe, setProfileVibe] = useState(currentUser.travelVibe || 'Slow & Cultural Wanderer')
   const [profileBudget, setProfileBudget] = useState(currentUser.defaultBudget || 'Mid-range')
   const [profileTravelers, setProfileTravelers] = useState(currentUser.defaultTravelers || 2)
+
+  // Pick up any preset destination selected on the intro page
+  useEffect(() => {
+    try {
+      const preset = sessionStorage.getItem('tripmind_preset_destination')
+      if (preset) {
+        const parsed = JSON.parse(preset)
+        setDashboardForm(prev => ({
+          ...prev,
+          destination: parsed.name || parsed.destination || prev.destination,
+          days: parsed.days || prev.days,
+          budget: parsed.budget || prev.budget,
+          interests: parsed.interests || prev.interests
+        }))
+        setActiveTab('planner')
+        sessionStorage.removeItem('tripmind_preset_destination')
+      }
+    } catch (e) {}
+  }, [])
+
+  // Sync user trips from Neon PostgreSQL on dashboard mount
+  useEffect(() => {
+
+    if (currentUser?.id) {
+      syncTripsFromNeon(currentUser.id).then(trips => {
+        if (Array.isArray(trips)) {
+          setUserTrips(trips)
+        }
+      }).catch(err => console.warn('Neon trip sync:', err))
+    }
+  }, [currentUser?.id])
+
+  const toggleActivity = (key) => {
+
+    setCheckedActivities(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }))
+  }
+
+  const handlePrint = () => {
+    window.print()
+  }
 
   // Refresh user trips from storage
   const reloadTrips = () => {
@@ -835,6 +880,14 @@ export default function DashboardView({
                     <button
                       type="button"
                       className="button button-secondary"
+                      onClick={handlePrint}
+                    >
+                      <Printer size={15} />
+                      <span>Print PDF</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-secondary"
                       onClick={() => copyTripMarkdown(selectedTrip)}
                     >
                       <Share2 size={15} />
@@ -842,11 +895,14 @@ export default function DashboardView({
                     </button>
                     <button
                       type="button"
-                      className="button button-secondary"
-                      onClick={() => onLoadTripToMainPlanner(selectedTrip)}
+                      className="button button-dark"
+                      onClick={() => {
+                        setSelectedTrip(null)
+                        setActiveTab('planner')
+                      }}
                     >
-                      <ArrowUpRight size={15} />
-                      <span>Open in Main View</span>
+                      <Plus size={15} />
+                      <span>Plan Another Trip</span>
                     </button>
                     <button
                       type="button"
@@ -906,8 +962,16 @@ export default function DashboardView({
                         <div className="day-activities-grid">
                           {d.activities?.map((act, actIdx) => {
                             const IconComponent = getCategoryIcon(act.category)
+                            const actKey = `${selectedTrip.id || selectedTrip.destination}_d${d.day}_${actIdx}`
+                            const isChecked = Boolean(checkedActivities[actKey])
                             return (
-                              <div key={actIdx} className="day-activity-row">
+                              <div
+                                key={actIdx}
+                                className={`day-activity-row ${isChecked ? 'completed' : ''}`}
+                                onClick={() => toggleActivity(actKey)}
+                                style={{ cursor: 'pointer' }}
+                                title="Click to mark activity as completed"
+                              >
                                 <div className="activity-time-chip">
                                   <Clock size={12} />
                                   <span>{act.time}</span>
@@ -916,7 +980,9 @@ export default function DashboardView({
                                   <IconComponent size={15} />
                                 </div>
                                 <div className="activity-details">
-                                  <strong>{act.title}</strong>
+                                  <strong style={{ textDecoration: isChecked ? 'line-through' : 'none', opacity: isChecked ? 0.6 : 1 }}>
+                                    {act.title}
+                                  </strong>
                                   <p>{act.description}</p>
                                 </div>
                                 {act.cost !== undefined && (
@@ -924,6 +990,9 @@ export default function DashboardView({
                                     {act.cost === 0 ? 'Free' : `$${act.cost}`}
                                   </div>
                                 )}
+                                <div className={`check-toggle ${isChecked ? 'checked' : ''}`}>
+                                  {isChecked && <Check size={12} />}
+                                </div>
                               </div>
                             )
                           })}
@@ -997,17 +1066,6 @@ export default function DashboardView({
                         >
                           <span>Open Itinerary</span>
                           <ArrowRight size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-action-btn"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onLoadTripToMainPlanner(trip)
-                          }}
-                          title="Open in Main Itinerary Viewer"
-                        >
-                          <ArrowUpRight size={16} />
                         </button>
                       </div>
                     </div>

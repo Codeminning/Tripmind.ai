@@ -12,13 +12,13 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowLeft,
-  Heart,
-  Globe
+  Check
 } from 'lucide-react'
 import {
   authenticateWithEmail,
   registerWithEmail,
-  authenticateWithGoogle
+  authenticateWithGoogle,
+  authenticateWithGoogleCredential
 } from '../auth'
 
 export default function LoginPage({ onLoginSuccess, onCancel }) {
@@ -31,62 +31,88 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
   const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [showGoogleModal, setShowGoogleModal] = useState(false)
-  const [customGoogleEmail, setCustomGoogleEmail] = useState('')
-  const [customGoogleName, setCustomGoogleName] = useState('')
 
-  const handleEmailSubmit = (e) => {
+  const handleEmailSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    setTimeout(() => {
-      try {
-        if (mode === 'signin') {
-          const user = authenticateWithEmail(email, password)
-          onLoginSuccess(user, `Welcome back, ${user.name}! 🌿`)
-        } else {
-          const user = registerWithEmail({ name, email, password, travelVibe })
-          onLoginSuccess(user, `Account created! Welcome to TripMind, ${user.name} ✨`)
-        }
-      } catch (err) {
-        setError(err.message || 'Authentication failed. Please try again.')
-      } finally {
-        setLoading(false)
+    try {
+      if (mode === 'signin') {
+        const user = await authenticateWithEmail(email, password)
+        onLoginSuccess(user, `Welcome back, ${user.name}! 🌿`)
+      } else {
+        const user = await registerWithEmail({ name, email, password, travelVibe })
+        onLoginSuccess(user, `Account created! Welcome to TripMind, ${user.name} ✨`)
       }
-    }, 400)
+    } catch (err) {
+      setError(err.message || 'Authentication failed. Please check your credentials.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleQuickDemo = (demoEmail, demoPass) => {
-    setError('')
+  const handleGoogleClick = async () => {
     setLoading(true)
-    setTimeout(() => {
+    setError('')
+
+    // Check if real Google Cloud Client ID is defined in environment
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    if (googleClientId && window.google?.accounts?.id) {
       try {
-        const user = authenticateWithEmail(demoEmail, demoPass)
-        onLoginSuccess(user, `Signed in as ${user.name} (Demo Account) 🌿`)
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: async (response) => {
+            try {
+              const user = await authenticateWithGoogleCredential(response.credential)
+              onLoginSuccess(user, `Signed in with Google as ${user.name}! ✨`)
+            } catch (err) {
+              setError(err.message)
+              setLoading(false)
+            }
+          }
+        })
+        window.google.accounts.id.prompt(async (notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            const user = await authenticateWithGoogle()
+            onLoginSuccess(user, `Signed in with Google as ${user.name}! ✨`)
+          }
+        })
+        return
       } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
+        console.warn('Google GSI error, falling back to instant 1-click Google sign in:', err)
       }
-    }, 300)
+    }
+
+    // Instant 1-Click Google Sign In (zero manual text boxes)
+    try {
+      const user = await authenticateWithGoogle({
+        name: 'Dhyanesh Visakan',
+        email: 'dhyanesh.visakan@gmail.com',
+        avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Dhyanesh%20Visakan&backgroundColor=244a3a&textColor=ffffff',
+        initials: 'DV'
+      })
+      onLoginSuccess(user, `Signed in with Google as ${user.name}! ✨`)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleGoogleSignIn = (profile = null) => {
-    setLoading(true)
+  const handleQuickDemo = async (demoEmail, demoPass) => {
     setError('')
-    setTimeout(() => {
-      try {
-        const user = authenticateWithGoogle(profile)
-        setShowGoogleModal(false)
-        onLoginSuccess(user, `Signed in with Google as ${user.name}! ✨`)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }, 400)
+    setLoading(true)
+    try {
+      const user = await authenticateWithEmail(demoEmail, demoPass)
+      onLoginSuccess(user, `Signed in as ${user.name} 🌿`)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
+
 
   return (
     <div className="auth-page-root">
@@ -94,7 +120,7 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
       <header className="auth-nav">
         <button type="button" className="auth-back-btn" onClick={onCancel}>
           <ArrowLeft size={16} />
-          <span>Back to Explore</span>
+          <span>Back to Intro</span>
         </button>
 
         <div className="auth-brand">
@@ -107,13 +133,13 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
         </div>
 
         <div className="auth-nav-hint">
-          <span>Curated Travel Concierge</span>
+          <span>Personal Travel Concierge</span>
         </div>
       </header>
 
       {/* Main Authentication Container */}
       <div className="auth-container">
-        {/* Left Side: Editorial Mood & Brand Story */}
+        {/* Left Side: Editorial Visual */}
         <div className="auth-visual-panel">
           <img
             src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=85"
@@ -124,21 +150,21 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
 
           <div className="auth-visual-content">
             <div className="auth-visual-badge">
-              <Sparkles size={14} /> YOUR PERSONAL ITINERARY DASHBOARD
+              <Sparkles size={14} /> YOUR PERSONAL TRAVEL WORKSPACE
             </div>
             <h2>
               Travel with intention.<br />
               <em>Plan without the stress.</em>
             </h2>
             <p>
-              Sign in to unlock your personal trip workspace, keep all your day-by-day itineraries
-              in one calm space, and tailor recommendations to your travel rhythm.
+              Sign in to unlock your dedicated itinerary dashboard, where you can generate,
+              customize, and organize all your trips in one calm space.
             </p>
 
             <div className="auth-perks-list">
               <div className="auth-perk-item">
                 <CheckCircle2 size={18} color="#e9a46d" />
-                <span>Dedicated travel dashboard for all your upcoming and dream trips</span>
+                <span>Dedicated personal dashboard to plan all your trips</span>
               </div>
               <div className="auth-perk-item">
                 <CheckCircle2 size={18} color="#e9a46d" />
@@ -146,17 +172,17 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
               </div>
               <div className="auth-perk-item">
                 <CheckCircle2 size={18} color="#e9a46d" />
-                <span>Powered by Gemini AI with custom concierge preferences</span>
+                <span>Powered by Gemini AI calibrated to your kind of pace</span>
               </div>
             </div>
 
             <div className="auth-quote-card">
               <p>“TripMind completely changed how I explore. No frantic spreadsheets, just beautiful, balanced days.”</p>
               <div className="auth-quote-author">
-                <div className="auth-mini-avatar">SC</div>
+                <div className="auth-mini-avatar">DV</div>
                 <div>
-                  <strong>Sophia Chen</strong>
-                  <small>Slow traveler & architectural writer</small>
+                  <strong>Dhyanesh Visakan</strong>
+                  <small>Food & Cultural Explorer</small>
                 </div>
               </div>
             </div>
@@ -192,12 +218,12 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
 
             <div className="auth-header">
               <h3>
-                {mode === 'signin' ? 'Welcome back to TripMind' : 'Start your travel journey'}
+                {mode === 'signin' ? 'Welcome back to TripMind' : 'Create your travel workspace'}
               </h3>
               <p>
                 {mode === 'signin'
-                  ? 'Access your private itineraries and continue crafting your adventures.'
-                  : 'Create your private dashboard and begin personalizing your itineraries.'}
+                  ? 'Sign in to access your dashboard and start planning your next journey.'
+                  : 'Start your free account to access your personal trip planner and dashboard.'}
               </p>
             </div>
 
@@ -209,12 +235,12 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
               </div>
             )}
 
-            {/* Google Authentication Button */}
+            {/* Google Authentication Button - 1 Click! */}
             <div className="auth-social-section">
               <button
                 type="button"
                 className="google-auth-btn"
-                onClick={() => setShowGoogleModal(true)}
+                onClick={handleGoogleClick}
                 disabled={loading}
               >
                 <svg className="google-icon" viewBox="0 0 24 24" width="20" height="20">
@@ -235,19 +261,19 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                   />
                 </svg>
-                <span>Continue with Google</span>
+                <span>{loading ? 'Connecting with Google...' : 'Continue with Google'}</span>
               </button>
             </div>
 
-            {/* Quick Demo Accounts Banner */}
+            {/* Quick Demo Travelers */}
             <div className="demo-accounts-pill-box">
-              <span className="demo-pill-title">⚡ Quick 1-Click Demo Accounts:</span>
+              <span className="demo-pill-title">⚡ Or test with 1-click traveler accounts:</span>
               <div className="demo-pill-actions">
                 <button
                   type="button"
                   className="demo-pill-btn"
                   onClick={() => handleQuickDemo('sophia@tripmind.ai', 'explorer123')}
-                  title="Sign in as Sophia (2 planned trips in Kyoto & Amalfi)"
+                  title="Sign in as Sophia (2 saved trips: Kyoto & Amalfi)"
                 >
                   <span className="avatar-chip">SC</span>
                   <span>Sophia (Slow Explorer)</span>
@@ -256,7 +282,7 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
                   type="button"
                   className="demo-pill-btn"
                   onClick={() => handleQuickDemo('liam@tripmind.ai', 'wanderer123')}
-                  title="Sign in as Liam (Planned trip in Oaxaca)"
+                  title="Sign in as Liam (Saved trip in Oaxaca)"
                 >
                   <span className="avatar-chip">LV</span>
                   <span>Liam (Foodie)</span>
@@ -281,7 +307,7 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
                       <input
                         id="register-name"
                         type="text"
-                        placeholder="e.g. Maya Lin"
+                        placeholder="e.g. Dhyanesh Visakan"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         required={mode === 'signup'}
@@ -291,7 +317,7 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
 
                   <div className="auth-field">
                     <label className="field-label" htmlFor="register-vibe">
-                      Your Travel Vibe / Style
+                      Your Travel Vibe / Rhythm
                     </label>
                     <div className="select-wrap">
                       <select
@@ -338,7 +364,7 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
                       className="forgot-link"
                       onClick={() =>
                         alert(
-                          'For this preview, you can use the demo accounts (sophia@tripmind.ai / explorer123 or liam@tripmind.ai / wanderer123) or Google authentication.'
+                          'You can use Google Authentication, demo accounts (sophia@tripmind.ai / explorer123 or liam@tripmind.ai / wanderer123), or create a new free account.'
                         )
                       }
                     >
@@ -386,7 +412,7 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
                 disabled={loading}
               >
                 {loading ? (
-                  <span>Authenticating...</span>
+                  <span>Entering Dashboard...</span>
                 ) : mode === 'signin' ? (
                   <>
                     <span>Enter My Travel Dashboard</span>
@@ -394,7 +420,7 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
                   </>
                 ) : (
                   <>
-                    <span>Create My Free Account</span>
+                    <span>Create Free Account & Go to Dashboard</span>
                     <ArrowRight size={17} />
                   </>
                 )}
@@ -404,135 +430,12 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
             <div className="auth-card-footer">
               <div className="auth-security-notice">
                 <ShieldCheck size={16} color="#244a3a" />
-                <span>Your travel plans and personal data are safely encrypted.</span>
+                <span>Your travel plans and personal data are safely saved.</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Google Authentication Modal Simulator */}
-      {showGoogleModal && (
-        <div className="modal-backdrop" onClick={() => setShowGoogleModal(false)}>
-          <div className="modal-sheet google-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="google-dialog-header">
-              <svg viewBox="0 0 24 24" width="24" height="24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <div>
-                <h4>Sign in with Google</h4>
-                <p>Choose an account to continue to TripMind AI</p>
-              </div>
-            </div>
-
-            <div className="google-accounts-list">
-              <button
-                type="button"
-                className="google-account-choice"
-                onClick={() =>
-                  handleGoogleSignIn({
-                    name: 'Julian Thorne',
-                    email: 'julian.thorne@gmail.com',
-                    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
-                    initials: 'JT'
-                  })
-                }
-              >
-                <img
-                  src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80"
-                  alt="Julian Thorne"
-                  className="google-user-avatar"
-                />
-                <div className="google-user-info">
-                  <strong>Julian Thorne</strong>
-                  <span>julian.thorne@gmail.com</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                className="google-account-choice"
-                onClick={() =>
-                  handleGoogleSignIn({
-                    name: 'Elena Rostova',
-                    email: 'elena.travels@gmail.com',
-                    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
-                    initials: 'ER'
-                  })
-                }
-              >
-                <img
-                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80"
-                  alt="Elena Rostova"
-                  className="google-user-avatar"
-                />
-                <div className="google-user-info">
-                  <strong>Elena Rostova</strong>
-                  <span>elena.travels@gmail.com</span>
-                </div>
-              </button>
-            </div>
-
-            <div className="google-custom-entry">
-              <span className="google-custom-kicker">Or enter your own Google account details:</span>
-              <div className="google-input-group">
-                <input
-                  type="text"
-                  placeholder="Your Name (e.g. David Miller)"
-                  value={customGoogleName}
-                  onChange={(e) => setCustomGoogleName(e.target.value)}
-                />
-                <input
-                  type="email"
-                  placeholder="Your Google Email (e.g. david@gmail.com)"
-                  value={customGoogleEmail}
-                  onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="button button-dark"
-                  disabled={!customGoogleEmail.trim()}
-                  onClick={() =>
-                    handleGoogleSignIn({
-                      name: customGoogleName.trim() || customGoogleEmail.split('@')[0],
-                      email: customGoogleEmail.trim(),
-                      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(customGoogleEmail)}`,
-                      initials: (customGoogleName.trim() || customGoogleEmail).slice(0, 2).toUpperCase()
-                    })
-                  }
-                >
-                  Sign In as {customGoogleEmail.split('@')[0] || 'User'}
-                </button>
-              </div>
-            </div>
-
-            <div className="google-dialog-footer">
-              <button
-                type="button"
-                className="google-cancel-btn"
-                onClick={() => setShowGoogleModal(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

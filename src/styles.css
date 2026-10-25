@@ -3761,3 +3761,70 @@ button {
     align-items: flex-start;
   }
 }
+
+/* Intro Page Dashboard CTA Banner */
+.dashboard-cta-banner {
+  margin: 60px auto 80px;
+}
+
+.dashboard-cta-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 50px 56px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 40px;
+  position: relative;
+  overflow: hidden;
+}
+
+.dashboard-cta-card::after {
+  content: '';
+  position: absolute;
+  right: -40px;
+  bottom: -40px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(233, 164, 109, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.dashboard-cta-copy {
+  max-width: 580px;
+}
+
+.dashboard-cta-copy h2 {
+  font-family: 'Manrope', sans-serif;
+  font-size: clamp(28px, 3.2vw, 36px);
+  font-weight: 800;
+  letter-spacing: -1.2px;
+  margin: 10px 0 12px;
+  line-height: 1.15;
+}
+
+.dashboard-cta-copy p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0;
+}
+
+.dashboard-cta-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .dashboard-cta-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 34px 26px;
+  }
+}

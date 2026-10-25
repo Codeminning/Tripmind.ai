@@ -4,11 +4,21 @@ import cors from 'cors';
 import { GoogleGenAI } from '@google/genai';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { sql, initDb } from './db.js';
 
 const app = express();
 const port = process.env.PORT || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || 'tripmind_secret_jwt_key_2026_zen';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, '..', 'dist');
+
+// Initialize Neon database schema automatically
+if (sql) {
+  initDb().catch(err => console.error('Failed to init Neon DB:', err));
+}
+
 
 app.use(cors({
   origin: true,
@@ -112,10 +122,320 @@ app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
     aiConfigured: Boolean(ai),
+    databaseConfigured: Boolean(sql),
     models: CANDIDATE_MODELS,
     timestamp: new Date().toISOString()
   });
 });
+
+// Helper to format trip rows from Neon DB
+function formatTripRow(row) {
+  return {
+    id: row.id,
+    destination: row.destination,
+    startDate: row.start_date,
+    status: row.status,
+    summary: row.summary,
+    travelTip: row.travel_tip,
+    bestTimeToVisit: row.best_time_to_visit,
+    budgetBreakdown: typeof row.budget_breakdown === 'string' ? JSON.parse(row.budget_breakdown) : (row.budget_breakdown || {}),
+    days: typeof row.days === 'string' ? JSON.parse(row.days) : (row.days || []),
+    formSnapshot: typeof row.form_snapshot === 'string' ? JSON.parse(row.form_snapshot) : (row.form_snapshot || {}),
+    savedAt: row.saved_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+// ---------------- Neon Auth Endpoints ----------------
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { name, email, password, travelVibe } = req.body || {};
+    const cleanName = (name || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    if (!cleanName) return res.status(400).json({ error: 'Please enter your name.' });
+    if (!cleanEmail || !cleanEmail.includes('@')) return res.status(400).json({ error: 'Please enter a valid email address.' });
+    if (!password || password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+
+    if (!sql) {
+      return res.status(503).json({ error: 'Neon database is not connected.' });
+    }
+
+    const existing = await sql`SELECT id FROM users WHERE email = ${cleanEmail} LIMIT 1`;
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'An account with this email already exists. Please sign in instead.' });
+    }
+
+    const nameParts = cleanName.split(' ');
+    const initials = nameParts.length > 1
+      ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+      : cleanName.slice(0, 2).toUpperCase();
+
+    const userId = `user_${Date.now()}`;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}&backgroundColor=244a3a&textColor=ffffff`;
+    const userVibe = travelVibe || 'Slow & Curious Traveler';
+    const defaultBudget = 'Mid-range';
+    const defaultTravelers = 2;
+    const favoriteInterests = ['Food & cafés', 'Culture & heritage', 'Slow travel'];
+
+    await sql`
+      INSERT INTO users (
+        id, name, email, password_hash, avatar, initials, travel_vibe, default_budget, default_travelers, favorite_interests, auth_provider
+      ) VALUES (
+        ${userId}, ${cleanName}, ${cleanEmail}, ${hashedPassword}, ${avatar}, ${initials}, ${userVibe}, ${defaultBudget}, ${defaultTravelers}, ${favoriteInterests}, 'email'
+      )
+    `;
+
+    const token = jwt.sign({ id: userId, email: cleanEmail }, JWT_SECRET, { expiresIn: '30d' });
+    const session = {
+      id: userId,
+      name: cleanName,
+      email: cleanEmail,
+      avatar,
+      initials,
+      travelVibe: userVibe,
+      defaultBudget,
+      defaultTravelers,
+      favoriteInterests,
+      authProvider: 'email',
+      token,
+      loggedInAt: new Date().toISOString()
+    };
+
+    return res.status(201).json({ user: session, token });
+  } catch (err) {
+    console.error('Registration error:', err);
+    return res.status(500).json({ error: 'Internal server error during registration.' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
+
+    if (!sql) {
+      return res.status(503).json({ error: 'Neon database is not connected.' });
+    }
+
+    const rows = await sql`SELECT * FROM users WHERE email = ${cleanEmail} LIMIT 1`;
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'No account found with this email address. Please sign up.' });
+    }
+
+    const user = rows[0];
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Incorrect password. Please try again.' });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
+    const session = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      initials: user.initials,
+      travelVibe: user.travel_vibe || 'Thoughtful Explorer',
+      defaultBudget: user.default_budget || 'Mid-range',
+      defaultTravelers: user.default_travelers || 2,
+      favoriteInterests: user.favorite_interests || ['Food & cafés', 'Culture & heritage'],
+      authProvider: user.auth_provider || 'email',
+      token,
+      loggedInAt: new Date().toISOString()
+    };
+
+    return res.json({ user: session, token });
+  } catch (err) {
+    console.error('Login error:', err);
+    return res.status(500).json({ error: 'Internal server error during login.' });
+  }
+});
+
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { name, email, avatar, initials } = req.body || {};
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanName = (name || 'Explorer').trim();
+
+    if (!cleanEmail) {
+      return res.status(400).json({ error: 'Email is required for Google login.' });
+    }
+
+    if (!sql) {
+      return res.status(503).json({ error: 'Neon database is not connected.' });
+    }
+
+    let rows = await sql`SELECT * FROM users WHERE email = ${cleanEmail} LIMIT 1`;
+    let user;
+
+    if (rows.length === 0) {
+      const userId = `user_google_${Date.now()}`;
+      const userInitials = initials || cleanName.slice(0, 2).toUpperCase();
+      const userAvatar = avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}&backgroundColor=244a3a&textColor=ffffff`;
+      const dummyHash = await bcrypt.hash(`oauth_${Date.now()}`, 10);
+
+      await sql`
+        INSERT INTO users (
+          id, name, email, password_hash, avatar, initials, travel_vibe, default_budget, default_travelers, favorite_interests, auth_provider
+        ) VALUES (
+          ${userId}, ${cleanName}, ${cleanEmail}, ${dummyHash}, ${userAvatar}, ${userInitials}, 'Food & Culinary Explorer', 'Mid-range', 2, ${['Food & cafés', 'Culture & heritage']}, 'google'
+        )
+      `;
+      const created = await sql`SELECT * FROM users WHERE id = ${userId} LIMIT 1`;
+      user = created[0];
+    } else {
+      user = rows[0];
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
+    const session = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      initials: user.initials,
+      travelVibe: user.travel_vibe || 'Food & Culinary Explorer',
+      defaultBudget: user.default_budget || 'Mid-range',
+      defaultTravelers: user.default_travelers || 2,
+      favoriteInterests: user.favorite_interests || ['Food & cafés'],
+      authProvider: 'google',
+      token,
+      loggedInAt: new Date().toISOString()
+    };
+
+    return res.json({ user: session, token });
+  } catch (err) {
+    console.error('Google auth error:', err);
+    return res.status(500).json({ error: 'Internal server error during Google auth.' });
+  }
+});
+
+app.put('/api/auth/profile', async (req, res) => {
+  try {
+    const { userId, name, travelVibe, defaultBudget, defaultTravelers, favoriteInterests, avatar } = req.body || {};
+    if (!userId) return res.status(400).json({ error: 'User ID is required.' });
+
+    if (!sql) return res.status(503).json({ error: 'Neon database is not connected.' });
+
+    await sql`
+      UPDATE users
+      SET
+        name = COALESCE(${name}, name),
+        travel_vibe = COALESCE(${travelVibe}, travel_vibe),
+        default_budget = COALESCE(${defaultBudget}, default_budget),
+        default_travelers = COALESCE(${defaultTravelers}, default_travelers),
+        favorite_interests = COALESCE(${favoriteInterests}, favorite_interests),
+        avatar = COALESCE(${avatar}, avatar)
+      WHERE id = ${userId}
+    `;
+
+    const rows = await sql`SELECT * FROM users WHERE id = ${userId} LIMIT 1`;
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found.' });
+    const u = rows[0];
+
+    return res.json({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      avatar: u.avatar,
+      initials: u.initials,
+      travelVibe: u.travel_vibe,
+      defaultBudget: u.default_budget,
+      defaultTravelers: u.default_travelers,
+      favoriteInterests: u.favorite_interests,
+      authProvider: u.auth_provider
+    });
+  } catch (err) {
+    console.error('Profile update error:', err);
+    return res.status(500).json({ error: 'Internal server error updating profile.' });
+  }
+});
+
+// ---------------- Neon Trips Endpoints ----------------
+app.get('/api/trips/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) return res.status(400).json({ error: 'User ID is required.' });
+
+    if (!sql) return res.status(503).json({ error: 'Neon database is not connected.' });
+
+    const rows = await sql`SELECT * FROM trips WHERE user_id = ${userId} ORDER BY created_at DESC`;
+    const formatted = rows.map(formatTripRow);
+    return res.json(formatted);
+  } catch (err) {
+    console.error('Fetch trips error:', err);
+    return res.status(500).json({ error: 'Internal server error fetching trips.' });
+  }
+});
+
+app.post('/api/trips', async (req, res) => {
+  try {
+    const { userId, trip } = req.body || {};
+    if (!userId || !trip) return res.status(400).json({ error: 'User ID and trip data are required.' });
+
+    if (!sql) return res.status(503).json({ error: 'Neon database is not connected.' });
+
+    const tripId = trip.id || `trip_${Date.now()}`;
+    const savedAt = trip.savedAt || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    await sql`
+      INSERT INTO trips (
+        id, user_id, destination, start_date, status, summary, travel_tip, best_time_to_visit,
+        budget_breakdown, days, form_snapshot, itinerary_data, saved_at, updated_at
+      ) VALUES (
+        ${tripId}, ${userId}, ${trip.destination}, ${trip.startDate || ''}, ${trip.status || 'Upcoming'},
+        ${trip.summary || ''}, ${trip.travelTip || ''}, ${trip.bestTimeToVisit || ''},
+        ${JSON.stringify(trip.budgetBreakdown || {})}, ${JSON.stringify(trip.days || [])},
+        ${JSON.stringify(trip.formSnapshot || {})}, ${JSON.stringify(trip)}, ${savedAt}, NOW()
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        destination = EXCLUDED.destination,
+        start_date = EXCLUDED.start_date,
+        status = EXCLUDED.status,
+        summary = EXCLUDED.summary,
+        travel_tip = EXCLUDED.travel_tip,
+        best_time_to_visit = EXCLUDED.best_time_to_visit,
+        budget_breakdown = EXCLUDED.budget_breakdown,
+        days = EXCLUDED.days,
+        form_snapshot = EXCLUDED.form_snapshot,
+        itinerary_data = EXCLUDED.itinerary_data,
+        updated_at = NOW()
+    `;
+
+    // Return updated trips list
+    const rows = await sql`SELECT * FROM trips WHERE user_id = ${userId} ORDER BY created_at DESC`;
+    const formatted = rows.map(formatTripRow);
+    return res.json(formatted);
+  } catch (err) {
+    console.error('Save trip error:', err);
+    return res.status(500).json({ error: 'Internal server error saving trip.' });
+  }
+});
+
+app.delete('/api/trips/:userId/:tripId', async (req, res) => {
+  try {
+    const { userId, tripId } = req.params;
+    if (!userId || !tripId) return res.status(400).json({ error: 'User ID and Trip ID are required.' });
+
+    if (!sql) return res.status(503).json({ error: 'Neon database is not connected.' });
+
+    await sql`DELETE FROM trips WHERE user_id = ${userId} AND id = ${tripId}`;
+    const rows = await sql`SELECT * FROM trips WHERE user_id = ${userId} ORDER BY created_at DESC`;
+    const formatted = rows.map(formatTripRow);
+    return res.json(formatted);
+  } catch (err) {
+    console.error('Delete trip error:', err);
+    return res.status(500).json({ error: 'Internal server error deleting trip.' });
+  }
+});
+
 
 app.post('/api/itinerary', async (req, res) => {
   const { destination, startDate, days, budget, travelers, interests } = req.body || {};
