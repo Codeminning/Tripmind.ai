@@ -23,7 +23,8 @@ import DashboardView from './components/DashboardView'
 import {
   getActiveSession,
   logOutUser,
-  getUserTrips
+  getUserTrips,
+  syncSessionWithNeon
 } from './auth'
 import './styles.css'
 
@@ -142,6 +143,17 @@ export default function App() {
     }
     return () => document.removeEventListener('click', handleDocumentClick)
   }, [userDropdownOpen])
+
+  // Automatically sync local session with Neon DB if user is already logged in
+  useEffect(() => {
+    if (currentUser?.id) {
+      syncSessionWithNeon(currentUser).then(res => {
+        if (res?.created) {
+          showToast(`✨ Synced ${currentUser.name} to Neon database!`)
+        }
+      }).catch(e => console.warn('Sync session check:', e))
+    }
+  }, [currentUser?.id])
 
   const showToast = (message) => {
     setToast(message)

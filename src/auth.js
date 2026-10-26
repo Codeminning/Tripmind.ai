@@ -323,34 +323,72 @@ export function updateUserTrip(userId, tripId, updates) {
 }
 
 // User Auth Operations (Backed by Neon Postgres)
+export async function syncSessionWithNeon(sessionUser) {
+  if (!sessionUser || !sessionUser.email) return null
+  try {
+    const res = await fetch('/api/auth/sync-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: sessionUser })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.created) {
+        console.log('✨ Automatically synced local user to Neon DB:', sessionUser.name)
+        // Also push any unsynced local trips for this user to Neon DB
+        const localTrips = getUserTrips(sessionUser.id)
+        for (const trip of localTrips) {
+          fetch('/api/trips', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: sessionUser.id, trip })
+          }).catch(e => console.warn('Neon trip sync error:', e))
+        }
+      }
+      return data
+    }
+  } catch (err) {
+    console.warn('Neon session sync unreachable (backend may be offline):', err.message)
+  }
+  return null
+}
+
 export async function authenticateWithEmail(email, password) {
   const cleanEmail = (email || '').trim().toLowerCase()
 
+  let res = null
+  let networkFailed = false
+
   try {
-    const res = await fetch('/api/auth/login', {
+    res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: cleanEmail, password })
     })
+  } catch (err) {
+    networkFailed = true
+    console.warn('Backend login connection failed:', err.message)
+  }
 
-    const data = await res.json()
+  if (res) {
+    const data = await res.json().catch(() => ({}))
     if (!res.ok) {
       throw new Error(data.error || 'Login failed.')
     }
-
     const session = data.user
     setActiveSession(session)
-    // Synchronize trips from Neon into local cache
     syncTripsFromNeon(session.id)
     return session
-  } catch (err) {
-    // If network or server error, check local stored demo accounts
-    console.warn('Backend login unavailable, checking local fallback:', err.message)
+  }
+
+  // Only check local demo users if the backend network is unreachable
+  if (networkFailed) {
+    console.warn('Backend server offline, checking local demo fallback.')
     const users = getStoredUsers()
     const user = users.find(u => u.email.toLowerCase() === cleanEmail)
 
     if (!user) {
-      throw new Error(err.message || 'No account found with this email address. Please sign up.')
+      throw new Error('Backend server is offline and no matching local account was found.')
     }
 
     if (user.password !== password) {
@@ -368,6 +406,7 @@ export async function authenticateWithEmail(email, password) {
       defaultTravelers: user.defaultTravelers || 2,
       favoriteInterests: user.favoriteInterests || ['Food & cafés', 'Culture & heritage'],
       authProvider: 'email',
+      isOffline: true,
       loggedInAt: new Date().toISOString()
     }
 
@@ -384,23 +423,34 @@ export async function registerWithEmail({ name, email, password, travelVibe }) {
   if (!cleanEmail || !cleanEmail.includes('@')) throw new Error('Please enter a valid email address.')
   if (!password || password.length < 6) throw new Error('Password must be at least 6 characters.')
 
+  let res = null
+  let networkFailed = false
+
   try {
-    const res = await fetch('/api/auth/register', {
+    res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: cleanName, email: cleanEmail, password, travelVibe })
     })
+  } catch (err) {
+    networkFailed = true
+    console.warn('Backend registration connection failed:', err.message)
+  }
 
-    const data = await res.json()
+  if (res) {
+    const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      throw new Error(data.error || 'Registration failed.')
+      // Surface real error from backend/database!
+      throw new Error(data.error || 'Registration failed on server.')
     }
-
     const session = data.user
     setActiveSession(session)
     return session
-  } catch (err) {
-    console.warn('Backend registration unavailable, using local fallback:', err.message)
+  }
+
+  // Only fall back to local storage if backend network was unreachable
+  if (networkFailed) {
+    console.warn('Backend server offline, saving in local offline mode.')
     const users = getStoredUsers()
     if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
       throw new Error('An account with this email already exists. Please sign in instead.')
@@ -422,7 +472,8 @@ export async function registerWithEmail({ name, email, password, travelVibe }) {
       defaultBudget: 'Mid-range',
       defaultTravelers: 2,
       favoriteInterests: ['Food & cafés', 'Culture & heritage', 'Slow travel'],
-      createdAt: new Date().toISOString().split('T')[0]
+      createdAt: new Date().toISOString().split('T')[0],
+      isOffline: true
     }
 
     saveStoredUsers([...users, newUser])
@@ -438,6 +489,7 @@ export async function registerWithEmail({ name, email, password, travelVibe }) {
       defaultTravelers: newUser.defaultTravelers,
       favoriteInterests: newUser.favoriteInterests,
       authProvider: 'email',
+      isOffline: true,
       loggedInAt: new Date().toISOString()
     }
 

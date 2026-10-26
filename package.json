@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -n \"API,VITE\" -c \"cyan,green\" \"node server/index.js\" \"vite\"",
+    "dev:server": "node server/index.js",
+    "dev:client": "vite",
     "server": "node server/index.js",
     "start": "node server/index.js",
     "build": "vite build",
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^10.0.6",
     "vite": "^6.0.5"
   }
 }

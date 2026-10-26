@@ -33,6 +33,7 @@ import {
 import {
   getUserTrips,
   syncTripsFromNeon,
+  syncSessionWithNeon,
   saveUserTrip,
   deleteUserTrip,
   updateUserTrip,
@@ -100,10 +101,15 @@ export default function DashboardView({
     } catch (e) {}
   }, [])
 
-  // Sync user trips from Neon PostgreSQL on dashboard mount
+  // Sync user account & trips with Neon PostgreSQL on dashboard mount
   useEffect(() => {
-
     if (currentUser?.id) {
+      syncSessionWithNeon(currentUser).then(res => {
+        if (res?.created) {
+          showToast?.(`✨ Synced ${currentUser.name} to Neon database!`)
+        }
+      }).catch(err => console.warn('Neon user sync:', err))
+
       syncTripsFromNeon(currentUser.id).then(trips => {
         if (Array.isArray(trips)) {
           setUserTrips(trips)

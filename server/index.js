@@ -118,7 +118,9 @@ function generateCuratedFallback({ destination, startDate, days, budget, travele
   };
 }
 
-app.get('/api/health', (_req, res) => {
+const router = express.Router();
+
+router.get('/health', (_req, res) => {
   res.json({
     ok: true,
     aiConfigured: Boolean(ai),
@@ -148,7 +150,7 @@ function formatTripRow(row) {
 }
 
 // ---------------- Neon Auth Endpoints ----------------
-app.post('/api/auth/register', async (req, res) => {
+router.post('/auth/register', async (req, res) => {
   try {
     const { name, email, password, travelVibe } = req.body || {};
     const cleanName = (name || '').trim();
@@ -211,7 +213,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+router.post('/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body || {};
     const cleanEmail = (email || '').trim().toLowerCase();
@@ -258,7 +260,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/auth/google', async (req, res) => {
+router.post('/auth/google', async (req, res) => {
   try {
     const { name, email, avatar, initials } = req.body || {};
     const cleanEmail = (email || '').trim().toLowerCase();
@@ -317,7 +319,7 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-app.put('/api/auth/profile', async (req, res) => {
+router.put('/auth/profile', async (req, res) => {
   try {
     const { userId, name, travelVibe, defaultBudget, defaultTravelers, favoriteInterests, avatar } = req.body || {};
     if (!userId) return res.status(400).json({ error: 'User ID is required.' });
@@ -358,8 +360,53 @@ app.put('/api/auth/profile', async (req, res) => {
   }
 });
 
+// Auto-sync session endpoint: ensures an offline/client-created account exists in Neon DB
+router.post('/auth/sync-session', async (req, res) => {
+  try {
+    const { user } = req.body || {};
+    if (!user || !user.email) {
+      return res.status(400).json({ error: 'User email is required for session sync.' });
+    }
+
+    if (!sql) {
+      return res.status(503).json({ error: 'Neon database is not connected.' });
+    }
+
+    const cleanEmail = (user.email || '').trim().toLowerCase();
+    const cleanName = (user.name || 'Traveler').trim();
+    const userId = user.id || `user_${Date.now()}`;
+    const initials = user.initials || cleanName.slice(0, 2).toUpperCase();
+    const avatar = user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}&backgroundColor=244a3a&textColor=ffffff`;
+    const userVibe = user.travelVibe || 'Food & Culinary Explorer';
+    const defaultBudget = user.defaultBudget || 'Mid-range';
+    const defaultTravelers = Number(user.defaultTravelers) || 2;
+    const favoriteInterests = Array.isArray(user.favoriteInterests) ? user.favoriteInterests : ['Food & cafés', 'Culture & heritage'];
+    const authProvider = user.authProvider || 'email';
+    const dummyHash = await bcrypt.hash(`session_sync_${Date.now()}`, 10);
+
+    const existing = await sql`SELECT * FROM users WHERE email = ${cleanEmail} OR id = ${userId} LIMIT 1`;
+    if (existing.length === 0) {
+      await sql`
+        INSERT INTO users (
+          id, name, email, password_hash, avatar, initials, travel_vibe, default_budget, default_travelers, favorite_interests, auth_provider
+        ) VALUES (
+          ${userId}, ${cleanName}, ${cleanEmail}, ${dummyHash}, ${avatar}, ${initials}, ${userVibe}, ${defaultBudget}, ${defaultTravelers}, ${favoriteInterests}, ${authProvider}
+        )
+      `;
+      console.log(`✨ Synced offline session user to Neon DB: ${cleanName} (${cleanEmail})`);
+      const created = await sql`SELECT * FROM users WHERE id = ${userId} LIMIT 1`;
+      return res.status(201).json({ synced: true, created: true, user: created[0] });
+    }
+
+    return res.json({ synced: true, created: false, user: existing[0] });
+  } catch (err) {
+    console.error('Session sync error:', err);
+    return res.status(500).json({ error: 'Internal server error syncing session.' });
+  }
+});
+
 // ---------------- Neon Trips Endpoints ----------------
-app.get('/api/trips/:userId', async (req, res) => {
+router.get('/trips/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     if (!userId) return res.status(400).json({ error: 'User ID is required.' });
@@ -375,7 +422,7 @@ app.get('/api/trips/:userId', async (req, res) => {
   }
 });
 
-app.post('/api/trips', async (req, res) => {
+router.post('/trips', async (req, res) => {
   try {
     const { userId, trip } = req.body || {};
     if (!userId || !trip) return res.status(400).json({ error: 'User ID and trip data are required.' });
@@ -419,7 +466,7 @@ app.post('/api/trips', async (req, res) => {
   }
 });
 
-app.delete('/api/trips/:userId/:tripId', async (req, res) => {
+router.delete('/trips/:userId/:tripId', async (req, res) => {
   try {
     const { userId, tripId } = req.params;
     if (!userId || !tripId) return res.status(400).json({ error: 'User ID and Trip ID are required.' });
@@ -436,8 +483,7 @@ app.delete('/api/trips/:userId/:tripId', async (req, res) => {
   }
 });
 
-
-app.post('/api/itinerary', async (req, res) => {
+router.post('/itinerary', async (req, res) => {
   const { destination, startDate, days, budget, travelers, interests } = req.body || {};
 
   if (!destination || typeof destination !== 'string' || !destination.trim()) {
@@ -531,9 +577,7 @@ CRITICAL RULES:
       const parsed = sanitizeJson(response.text);
 
       if (parsed && Array.isArray(parsed.days) && parsed.days.length > 0) {
-        // Ensure day count matches requested tripDays
         if (parsed.days.length !== tripDays) {
-          // If the model returned slightly different day count, pad or slice
           if (parsed.days.length > tripDays) {
             parsed.days = parsed.days.slice(0, tripDays);
           } else {
@@ -549,7 +593,6 @@ CRITICAL RULES:
           }
         }
 
-        // Add model badge
         parsed.generatedBy = modelName;
         console.log(`Successfully generated itinerary with ${modelName}!`);
         return res.json(parsed);
@@ -559,22 +602,24 @@ CRITICAL RULES:
     } catch (err) {
       console.warn(`Error generating with model ${modelName}:`, err.message);
       lastError = err;
-      // If error is high demand / 503 / 404, loop continues to next model
     }
   }
 
-  // If all Gemini models failed, fallback gracefully so user has a working itinerary
   console.log('Gemini models unavailable, returning high quality curated fallback.');
   const safeFallback = generateCuratedFallback({ destination, startDate, days: tripDays, budget, travelers, interests });
   safeFallback.note = 'Generated via TripMind smart planner (AI service temporarily high demand).';
   return res.json(safeFallback);
 });
 
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(clientDist, 'index.html'));
-});
+// Mount router on both /api (standard) and / (for rewritten environments like Vercel)
+app.use('/api', router);
+app.use('/', router);
 
 if (!process.env.VERCEL) {
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+
   app.listen(port, () => {
     console.log(`TripMind API running at http://localhost:${port}`);
   });
