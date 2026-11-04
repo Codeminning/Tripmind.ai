@@ -934,10 +934,11 @@ export default function DashboardView({
   }
 
   // Poll an ongoing background job to completion
-  const pollBackgroundJob = async (jobId, formValues, controller) => {
+  const pollBackgroundJob = async (jobId, formValues, controller, setErrorOnFail = true) => {
     const dest = formValues.destination
-    const maxPollDuration = 90000 // 90s maximum
+    const maxPollDuration = 35000 // 35s maximum before falling back to direct route
     const pollStart = Date.now()
+    let consecutiveQueued = 0
 
     while (Date.now() - pollStart < maxPollDuration) {
       if (controller.signal.aborted) {
@@ -992,13 +993,26 @@ export default function DashboardView({
             sessionStorage.removeItem('tripmind_active_job')
           } catch (_) {}
           setActiveJobId(null)
-          setPlannerError({
-            type: 'ai_error',
-            message: jobData.error || 'The AI planner was unable to generate day-by-day activities. Please try again.',
-            canRetry: true
-          })
-          setLiveAnnouncement('Trip planning failed. Please try again.')
+          if (setErrorOnFail) {
+            setPlannerError({
+              type: 'ai_error',
+              message: jobData.error || 'The AI planner was unable to generate day-by-day activities. Please try again.',
+              canRetry: true
+            })
+            setLiveAnnouncement('Trip planning failed. Please try again.')
+          }
           return false
+        }
+
+        if (jobData.status === 'queued') {
+          consecutiveQueued++
+          // If queued for > 8 polls (~10 seconds) without progress, fall through to direct route
+          if (consecutiveQueued >= 8) {
+            console.log('Background queue idle; transitioning to direct generation route...')
+            return false
+          }
+        } else {
+          consecutiveQueued = 0
         }
       } catch (pollErr) {
         if (pollErr.name === 'AbortError' || controller.signal.aborted) {
@@ -1012,12 +1026,14 @@ export default function DashboardView({
       sessionStorage.removeItem('tripmind_active_job')
     } catch (_) {}
     setActiveJobId(null)
-    setPlannerError({
-      type: 'timeout',
-      message: 'Trip planning is taking longer than expected. Your destination and preferences are saved below—click Try again to continue.',
-      canRetry: true
-    })
-    setLiveAnnouncement('Planning took longer than expected.')
+    if (setErrorOnFail) {
+      setPlannerError({
+        type: 'timeout',
+        message: 'Trip planning is taking longer than expected. Your destination and preferences are saved below—click Try again to continue.',
+        canRetry: true
+      })
+      setLiveAnnouncement('Planning took longer than expected.')
+    }
     return false
   }
 
@@ -1118,8 +1134,11 @@ export default function DashboardView({
           }))
         } catch (_) {}
 
-        await pollBackgroundJob(jobId, dashboardForm, controller)
-        return
+        const success = await pollBackgroundJob(jobId, dashboardForm, controller, false)
+        if (success) {
+          return
+        }
+        console.log('Background queue unfulfilled; transitioning to direct generation route...')
       }
 
       // 2. Direct HTTP generation fallback (with coordinated 45-second timeout)

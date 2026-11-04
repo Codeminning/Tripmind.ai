@@ -142,7 +142,8 @@ class JobQueue {
       }
     }
 
-    // Trigger queue processing tick
+    // Trigger queue processing tick immediately and asynchronously
+    this.tick().catch(() => {});
     setTimeout(() => this.tick(), 10);
 
     return this.formatJob(job);
@@ -179,6 +180,52 @@ class JobQueue {
     }
 
     return null;
+  }
+
+  /**
+   * Ensure a job is making progress.
+   * In serverless environments where background event loop timers are frozen between requests,
+   * this allows the active polling request to drive job processing forward.
+   */
+  async ensureProcessing(id) {
+    if (!id) return null;
+
+    let job = this.memoryJobs.get(id);
+    if (!job && sql) {
+      try {
+        const rows = await sql`
+          SELECT id, type, status, progress, stage, payload, result, error, attempts, max_attempts, created_at, updated_at, completed_at
+          FROM background_jobs
+          WHERE id = ${id}
+          LIMIT 1
+        `;
+        if (rows.length > 0) {
+          job = rows[0];
+          this.memoryJobs.set(id, job);
+        }
+      } catch (err) {
+        console.warn('[JobQueue] Neon fetch job warning:', err.message);
+      }
+    }
+
+    if (!job) return null;
+
+    // If job is already completed or failed, return formatted job
+    if (job.status === 'completed' || job.status === 'failed') {
+      return this.formatJob(job);
+    }
+
+    // If job is queued or not currently actively executing in this process, kick off runJob
+    if (!this.activeJobs.has(job.id)) {
+      const runPromise = this.runJob(job);
+      // Wait up to 20 seconds for completion or stage progress in this request context
+      await Promise.race([
+        runPromise,
+        new Promise(r => setTimeout(r, 20000))
+      ]);
+    }
+
+    return this.formatJob(this.memoryJobs.get(id) || job);
   }
 
   /**
@@ -411,6 +458,7 @@ class JobQueue {
               stage = 'Failed',
               error = ${errorMessage},
               updated_at = NOW()
+          WHERE id = ${id}
         `;
       } catch (e) {
         console.warn('[JobQueue] Failed to record failed job in Neon:', e.message);

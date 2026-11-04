@@ -1465,7 +1465,7 @@ router.get('/jobs/stats', (_req, res) => {
 
 router.get('/jobs/:jobId', async (req, res) => {
   const { jobId } = req.params;
-  const job = await jobQueue.getJob(jobId);
+  const job = await jobQueue.ensureProcessing(jobId);
 
   if (!job) {
     return res.status(404).json({ error: 'Job not found.', code: 'JOB_NOT_FOUND' });
