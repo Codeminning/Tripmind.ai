@@ -26,6 +26,7 @@ import {
 } from '../currency'
 import { downloadTripIcs } from '../calendarExport'
 import { AppFooter } from './AppFooter'
+import { upper, lower, displayNameOf } from '../utils/safeText'
 
 const MapView = lazy(() => import('./MapView'))
 
@@ -189,15 +190,15 @@ export default function SharedTripView({ shareId, onNavigateHome }) {
         <div className="trip-sheet-card shared-card">
           <div className="trip-sheet-top">
             <span className="destination-tag">
-              {trip.destination.toUpperCase()} · CURATED ITINERARY
+              {upper(trip?.destination, 'TRIP')} · CURATED ITINERARY
             </span>
-            <h2>{trip.destination}</h2>
-            {trip.startDate && (
+            <h2>{trip?.destination || 'Curated Itinerary'}</h2>
+            {trip?.startDate && (
               <p className="shared-dates-hint">
                 <Calendar size={14} /> Starts: {trip.startDate} ({trip.days?.length || 0} Days)
               </p>
             )}
-            <p className="trip-sheet-summary">{trip.summary}</p>
+            <p className="trip-sheet-summary">{trip?.summary || ''}</p>
             {trip.travelTip && (
               <div className="trip-sheet-tip">
                 <strong>✳ Local Secret:</strong> {trip.travelTip}

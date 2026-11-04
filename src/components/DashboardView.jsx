@@ -79,6 +79,7 @@ import { calculateTripCountdown } from '../tripReminders'
 import { GroupInviteModal } from './GroupInviteModal'
 import { JoinByLinkModal } from './JoinByLinkModal'
 import { DestinationAutocomplete } from './DestinationAutocomplete'
+import { upper, lower, initials, displayNameOf } from '../utils/safeText'
 import { CalendarSyncModal } from './CalendarSyncModal'
 import { ActivityCollaboration } from './ActivityCollaboration'
 import { ActivityProposalsList } from './ActivityProposalsList'
@@ -137,16 +138,11 @@ const LOADING_MESSAGES = [
 ]
 
 function computeNameInitials(name) {
-  if (!name || typeof name !== 'string') return 'TM'
-  const parts = name.trim().split(/\s+/)
-  if (parts.length > 1) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-  }
-  return name.trim().slice(0, 2).toUpperCase()
+  return initials(name);
 }
 
 function getCategoryIcon(cat) {
-  const c = (cat || '').toLowerCase()
+  const c = lower(cat)
   if (c.includes('food') || c.includes('café') || c.includes('cafe')) return Utensils
   if (c.includes('nature') || c.includes('park') || c.includes('garden')) return Leaf
   if (c.includes('culture') || c.includes('historic') || c.includes('temple')) return Landmark
@@ -765,15 +761,19 @@ export default function DashboardView({
 
   // Next upcoming journey spotlight
   const nextTrip = useMemo(() => {
-    if (userTrips.length === 0) return null
+    if (!Array.isArray(userTrips) || userTrips.length === 0) return null
     return userTrips[0]
   }, [userTrips])
 
   // Filtered trips for "My Trips" tab
   const filteredTrips = useMemo(() => {
+    if (!Array.isArray(userTrips)) return []
     return userTrips.filter(trip => {
-      const matchSearch = trip.destination.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (trip.summary || '').toLowerCase().includes(searchQuery.toLowerCase())
+      if (!trip) return false
+      const destStr = String(trip.destination || '')
+      const summaryStr = String(trip.summary || '')
+      const q = lower(searchQuery)
+      const matchSearch = destStr.toLowerCase().includes(q) || summaryStr.toLowerCase().includes(q)
       const matchStatus = statusFilter === 'all' || trip.status === statusFilter
       return matchSearch && matchStatus
     })
@@ -791,7 +791,7 @@ export default function DashboardView({
   const selectedTripCurrency = useMemo(() => {
     if (!selectedTrip?.destination) return detectCurrencyForDestination('USD')
     return detectCurrencyForDestination(selectedTrip.destination)
-  }, [selectedTrip])
+  }, [selectedTrip?.destination])
 
   // Helper to format currency values based on current INR/USD currency mode
   const formatLocal = (usd, code) => {
@@ -2319,10 +2319,10 @@ export default function DashboardView({
                 <div className="trip-sheet-card">
                   <div className="trip-sheet-top">
                     <span className="destination-tag">
-                      {selectedTrip.destination.toUpperCase()} · {selectedTrip.status || 'SAVED'}
+                      {upper(selectedTrip?.destination, 'TRIP')} · {upper(selectedTrip?.status, 'SAVED')}
                     </span>
-                    <h2>{selectedTrip.destination}</h2>
-                    <p className="trip-sheet-summary">{selectedTrip.summary}</p>
+                    <h2>{selectedTrip?.destination || 'Curated Itinerary'}</h2>
+                    <p className="trip-sheet-summary">{selectedTrip?.summary || ''}</p>
                     {selectedTrip.travelTip && (
                       <div className="trip-sheet-tip">
                         <strong>✳ Local Secret:</strong> {selectedTrip.travelTip}
@@ -2553,7 +2553,7 @@ export default function DashboardView({
                   ) : (
                     /* Day-by-Day Accordion */
                     <div className="trip-days-list">
-                      {selectedTrip.days?.map(d => (
+                      {(selectedTrip?.days ?? []).map(d => (
                         <div key={d.day} className="dashboard-day-card">
                           <div className="day-card-header">
                             <span className="day-badge">Day 0{d.day}</span>
@@ -2562,11 +2562,11 @@ export default function DashboardView({
 
                           {/* Phase 4: Group Activity Proposals */}
                           <ActivityProposalsList
-                            proposals={selectedTrip.activityProposals || []}
+                            proposals={selectedTrip?.activityProposals || []}
                             dayNum={d.day}
-                            isOwner={selectedTrip.userMemberRole === 'owner' || selectedTrip.userId === currentUser?.id}
-                            confirmThreshold={selectedTrip.confirmThreshold || 'owner'}
-                            totalMembers={(selectedTrip.travelers || []).length || 1}
+                            isOwner={selectedTrip?.userMemberRole === 'owner' || selectedTrip?.userId === currentUser?.id}
+                            confirmThreshold={selectedTrip?.confirmThreshold || 'owner'}
+                            totalMembers={(selectedTrip?.travelers || []).length || 1}
                             onConfirm={handleConfirmProposal}
                             onDismiss={handleDismissProposal}
                             onOpenPropose={() => {
@@ -2576,9 +2576,9 @@ export default function DashboardView({
                           />
 
                           <div className="day-activities-grid">
-                            {d.activities?.map((act, actIdx) => {
+                            {(d?.activities ?? []).map((act, actIdx) => {
                               const IconComponent = getCategoryIcon(act.category)
-                              const actKey = `${selectedTrip.id || selectedTrip.destination}_d${d.day}_${actIdx}`
+                              const actKey = `${selectedTrip?.id || selectedTrip?.destination || 'trip'}_d${d.day}_${actIdx}`
                               const isChecked = Boolean(checkedActivities[actKey])
                               return (
                                 <div
@@ -3265,19 +3265,38 @@ export default function DashboardView({
         <JoinByLinkModal
           isOpen={joinByLinkOpen}
           currentUser={currentUser}
-          existingTripIds={userTrips.map(t => t.id)}
+          existingTripIds={(userTrips ?? []).map(t => t?.id).filter(Boolean)}
           onClose={() => setJoinByLinkOpen(false)}
           onJoinSuccess={(joinedTrip) => {
             setJoinByLinkOpen(false)
+            let tripObj = null
+            if (joinedTrip && typeof joinedTrip === 'object') {
+              tripObj = joinedTrip
+            } else if (typeof joinedTrip === 'string') {
+              tripObj = userTrips.find(t => t?.id === joinedTrip) || {
+                id: joinedTrip,
+                destination: 'Group Trip',
+                status: 'Upcoming',
+                days: []
+              }
+            }
+
             if (currentUser?.id) {
               syncTripsFromNeon(currentUser.id).then(trips => {
-                if (Array.isArray(trips)) setUserTrips(trips)
+                if (Array.isArray(trips)) {
+                  setUserTrips(trips)
+                  if (tripObj?.id) {
+                    const fresh = trips.find(t => t?.id === tripObj.id)
+                    if (fresh) setSelectedTrip(fresh)
+                  }
+                }
               })
             } else {
               setUserTrips(getUserTrips('guest'))
             }
-            if (joinedTrip) {
-              setSelectedTrip(joinedTrip)
+
+            if (tripObj) {
+              setSelectedTrip(tripObj)
               setTripViewTab('itinerary')
             }
           }}

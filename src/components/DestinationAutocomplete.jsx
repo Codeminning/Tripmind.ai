@@ -158,7 +158,11 @@ export function DestinationAutocomplete({
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={() => {
-            if (suggestions.length > 0) setIsOpen(true)
+            if (suggestions.length > 0) {
+              setIsOpen(true)
+            } else if (value && value.trim().length >= 2) {
+              fetchSuggestions(value)
+            }
           }}
           placeholder={placeholder}
           required={required}

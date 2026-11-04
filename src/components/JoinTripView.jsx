@@ -11,6 +11,7 @@ import {
   Check
 } from 'lucide-react'
 import { fetchInvitePreview, joinTripByInvite } from '../groupTrip'
+import { displayNameOf, upper } from '../utils/safeText'
 
 export function JoinTripView({
   inviteToken,
@@ -47,7 +48,16 @@ export function JoinTripView({
     setJoining(true)
     try {
       const res = await joinTripByInvite({ inviteToken, token: currentUser.token })
-      onJoinSuccess?.(res.tripId)
+      const completeTrip = res.trip || {
+        id: res.tripId || tripPreview?.id,
+        destination: res.destination || tripPreview?.destination || 'Group Trip',
+        status: 'Upcoming',
+        startDate: tripPreview?.startDate || '',
+        summary: tripPreview?.summary || '',
+        travelers: [displayNameOf(currentUser)],
+        days: []
+      }
+      onJoinSuccess?.(completeTrip)
     } catch (err) {
       setError(err.message || 'Could not join group trip.')
     } finally {

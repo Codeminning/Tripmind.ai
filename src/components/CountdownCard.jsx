@@ -1,6 +1,7 @@
 import React from 'react'
 import { Calendar, Clock, Compass, Sparkles, ArrowRight } from 'lucide-react'
 import { calculateTripCountdown } from '../tripReminders'
+import { upper } from '../utils/safeText'
 
 export function CountdownCard({ trip, onOpenChecklist }) {
   if (!trip?.startDate) return null
@@ -24,7 +25,7 @@ export function CountdownCard({ trip, onOpenChecklist }) {
         )}
         {(isToday || isTomorrow || isOngoing) && (
           <div className="countdown-number-block pulse">
-            <span className="countdown-status-badge">{countdown.badgeText.toUpperCase()}</span>
+            <span className="countdown-status-badge">{upper(countdown?.badgeText, 'UPCOMING')}</span>
           </div>
         )}
       </div>

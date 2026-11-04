@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Star, Image as ImageIcon, Plus, Trash2, Edit2, X, Calendar, Lock, ShieldCheck, Heart, Loader2 } from 'lucide-react'
 import { fetchTripReviews, saveTripReview, updateTripReview, deleteTripReview, compressPhoto } from '../reviews'
+import { displayNameOf, initials } from '../utils/safeText'
 
 export function TripReviewsView({ trip, currentUser }) {
   const [reviews, setReviews] = useState([])
@@ -230,14 +231,14 @@ export function TripReviewsView({ trip, currentUser }) {
                 <div className="review-card-header">
                   <div className="review-author-wrap">
                     {rev.user_avatar ? (
-                      <img src={rev.user_avatar} alt={rev.user_name} className="review-avatar-img" />
+                      <img src={rev.user_avatar} alt={displayNameOf(rev)} className="review-avatar-img" />
                     ) : (
                       <div className="review-avatar-placeholder">
-                        {(rev.user_name || 'U').charAt(0).toUpperCase()}
+                        {initials(displayNameOf(rev))}
                       </div>
                     )}
                     <div>
-                      <strong className="review-author-name">{rev.user_name || 'Traveler'}</strong>
+                      <strong className="review-author-name">{displayNameOf(rev)}</strong>
                       <div className="review-meta-row">
                         <span className="review-date">
                           <Calendar size={12} /> {rev.visited_at || 'Visited'}

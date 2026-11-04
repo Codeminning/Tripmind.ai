@@ -61,7 +61,7 @@ export async function saveTripExpense(tripId, expenseData, userId = null) {
     tripId,
     userId,
     amount: Number(expenseData.amount) || 0,
-    currency: (expenseData.currency || 'USD').toUpperCase().trim(),
+    currency: String(expenseData.currency || 'USD').toUpperCase().trim(),
     category: expenseData.category || 'other',
     note: (expenseData.note || '').trim().slice(0, 255),
     date: expenseData.date || new Date().toISOString().split('T')[0],

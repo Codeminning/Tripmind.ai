@@ -18,6 +18,7 @@ import {
   fetchTripMembers,
   removeTripMember
 } from '../groupTrip'
+import { upper, lower, initials, displayNameOf } from '../utils/safeText'
 
 export function GroupInviteModal({
   trip,
@@ -364,8 +365,9 @@ export function GroupInviteModal({
               </div>
             ) : (
               <div className="members-list-grid" role="list">
-                {members.map(member => {
-                  const isMemberOwner = member.role === 'owner'
+                {(members ?? []).map(member => {
+                  const isMemberOwner = member?.role === 'owner'
+                  const memberName = displayNameOf(member)
                   return (
                     <div key={member.id} className="member-card-row" role="listitem">
                       <div className="member-avatar-wrap">
@@ -373,13 +375,13 @@ export function GroupInviteModal({
                           <img src={member.avatar} alt="" className="member-avatar-img" />
                         ) : (
                           <div className="member-avatar-initials">
-                            {member.initials || (member.name ? member.name.slice(0, 2).toUpperCase() : 'TR')}
+                            {member.initials || initials(memberName)}
                           </div>
                         )}
                       </div>
 
                       <div className="member-info">
-                        <strong className="member-name">{member.name || 'Traveler'}</strong>
+                        <strong className="member-name">{memberName}</strong>
                         <span className="member-joined">
                           Joined {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString() : 'recently'}
                         </span>
@@ -387,9 +389,9 @@ export function GroupInviteModal({
 
                       <div className="member-role-badge">
                         {isMemberOwner ? (
-                          <span className="role-owner"><Shield size={12} /> Owner</span>
+                          <span className="role-owner"><Shield size={12} /> {upper(member?.role, 'OWNER')}</span>
                         ) : (
-                          <span className="role-member">Member</span>
+                          <span className="role-member">{upper(member?.role, 'MEMBER')}</span>
                         )}
                       </div>
 
@@ -398,7 +400,7 @@ export function GroupInviteModal({
                           type="button"
                           className="member-remove-btn"
                           onClick={() => handleRemoveMember(member.id)}
-                          aria-label={`Remove ${member.name} from group trip`}
+                          aria-label={`Remove ${memberName} from group trip`}
                           title="Remove member"
                         >
                           <UserX size={15} />

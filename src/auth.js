@@ -1,4 +1,5 @@
 // TripMind AI - Authentication & Multi-Tenant User Management System
+import { initials, upper } from './utils/safeText'
 
 const USERS_STORAGE_KEY = 'tripmind_users_db'
 const SESSION_STORAGE_KEY = 'tripmind_active_session'
@@ -460,10 +461,7 @@ export async function registerWithEmail({ name, email, password, travelVibe }) {
       throw new Error('An account with this email already exists. Please sign in instead.')
     }
 
-    const nameParts = cleanName.split(' ')
-    const initials = nameParts.length > 1 
-      ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
-      : cleanName.slice(0, 2).toUpperCase()
+    const userInitials = initials(cleanName)
 
     const newUser = {
       id: `user_${Date.now()}`,
@@ -471,7 +469,7 @@ export async function registerWithEmail({ name, email, password, travelVibe }) {
       email: cleanEmail,
       password,
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}&backgroundColor=2b5143&textColor=ffffff`,
-      initials,
+      initials: userInitials,
       travelVibe: travelVibe || 'Slow & Curious Traveler',
       defaultBudget: 'Mid-range',
       defaultTravelers: 2,
@@ -525,10 +523,7 @@ export function updateUserProfile(userId, updates) {
   const users = getStoredUsers()
   let computedInitials = updates.initials
   if (!computedInitials && updates.name) {
-    const parts = updates.name.trim().split(' ')
-    computedInitials = parts.length > 1
-      ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-      : updates.name.slice(0, 2).toUpperCase()
+    computedInitials = initials(updates.name)
   }
 
   const finalUpdates = {

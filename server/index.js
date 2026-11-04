@@ -48,10 +48,9 @@ const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 const CANDIDATE_MODELS = [
   'gemini-3-flash-preview',
-  'gemini-3.5-flash',
-  'gemini-3.8-flash',
-  'gemini-3.5-flash-lite',
-  'gemini-flash-latest'
+  'gemini-flash-latest',
+  'gemini-3.1-flash-lite',
+  'gemini-2.5-flash'
 ];
 
 function sanitizeJson(rawText) {
@@ -199,24 +198,25 @@ router.get('/health', (_req, res) => {
 
 // Helper to format trip rows from Neon DB
 function formatTripRow(row) {
+  if (!row) return null;
   return {
     id: row.id,
     userId: row.user_id,
-    userMemberRole: row.user_member_role || (row.user_id ? 'owner' : null),
-    destination: row.destination,
-    startDate: row.start_date,
-    status: row.status,
-    summary: row.summary,
-    travelTip: row.travel_tip,
-    bestTimeToVisit: row.best_time_to_visit,
+    userMemberRole: row.user_member_role || (row.user_id ? 'owner' : 'member'),
+    destination: row.destination || 'Group Trip',
+    startDate: row.start_date || '',
+    status: row.status || 'Upcoming',
+    summary: row.summary || '',
+    travelTip: row.travel_tip || '',
+    bestTimeToVisit: row.best_time_to_visit || '',
     budgetBreakdown: typeof row.budget_breakdown === 'string' ? JSON.parse(row.budget_breakdown) : (row.budget_breakdown || {}),
     days: typeof row.days === 'string' ? JSON.parse(row.days) : (row.days || []),
     formSnapshot: typeof row.form_snapshot === 'string' ? JSON.parse(row.form_snapshot) : (row.form_snapshot || {}),
-    savedAt: row.saved_at,
+    savedAt: row.saved_at || new Date().toISOString(),
     shareId: row.share_id || null,
     isShared: Boolean(row.is_shared),
     sharedAt: row.shared_at || null,
-    travelers: typeof row.travelers === 'string' ? JSON.parse(row.travelers) : (row.travelers || null),
+    travelers: typeof row.travelers === 'string' ? JSON.parse(row.travelers) : (row.travelers || ['You']),
     checklist: typeof row.checklist === 'string' ? JSON.parse(row.checklist) : (row.checklist || []),
     remindersSent: typeof row.reminders_sent === 'string' ? JSON.parse(row.reminders_sent) : (row.reminders_sent || []),
     version: Number(row.version) || 1,
@@ -933,6 +933,50 @@ router.get('/exchange-rates', async (_req, res) => {
 const placesCache = new Map();
 const PLACES_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+const POPULAR_DESTINATIONS = [
+  { name: 'Potheri', district: 'Kattangulathur', city: 'Chengalpattu', state: 'Tamil Nadu', country: 'India', countryCode: 'IN', label: 'Potheri, Chengalpattu, Tamil Nadu, India' },
+  { name: 'Madurai', district: 'Madurai', city: 'Madurai', state: 'Tamil Nadu', country: 'India', countryCode: 'IN', label: 'Madurai, Tamil Nadu, India' },
+  { name: 'Chennai', district: 'Chennai', city: 'Chennai', state: 'Tamil Nadu', country: 'India', countryCode: 'IN', label: 'Chennai, Tamil Nadu, India' },
+  { name: 'Coimbatore', district: 'Coimbatore', city: 'Coimbatore', state: 'Tamil Nadu', country: 'India', countryCode: 'IN', label: 'Coimbatore, Tamil Nadu, India' },
+  { name: 'Bengaluru', district: 'Bangalore Urban', city: 'Bengaluru', state: 'Karnataka', country: 'India', countryCode: 'IN', label: 'Bengaluru, Karnataka, India' },
+  { name: 'Mumbai', district: 'Mumbai', city: 'Mumbai', state: 'Maharashtra', country: 'India', countryCode: 'IN', label: 'Mumbai, Maharashtra, India' },
+  { name: 'New Delhi', district: 'Delhi', city: 'New Delhi', state: 'Delhi', country: 'India', countryCode: 'IN', label: 'New Delhi, Delhi, India' },
+  { name: 'Goa', district: 'North Goa', city: 'Panaji', state: 'Goa', country: 'India', countryCode: 'IN', label: 'Goa, India' },
+  { name: 'Jaipur', district: 'Jaipur', city: 'Jaipur', state: 'Rajasthan', country: 'India', countryCode: 'IN', label: 'Jaipur, Rajasthan, India' },
+  { name: 'Kochi', district: 'Ernakulam', city: 'Kochi', state: 'Kerala', country: 'India', countryCode: 'IN', label: 'Kochi, Kerala, India' },
+  { name: 'Munnar', district: 'Idukki', city: 'Munnar', state: 'Kerala', country: 'India', countryCode: 'IN', label: 'Munnar, Kerala, India' },
+  { name: 'Ooty', district: 'Nilgiris', city: 'Udhagamandalam', state: 'Tamil Nadu', country: 'India', countryCode: 'IN', label: 'Ooty, Tamil Nadu, India' },
+  { name: 'Pondicherry', district: 'Puducherry', city: 'Pondicherry', state: 'Puducherry', country: 'India', countryCode: 'IN', label: 'Pondicherry, India' },
+  { name: 'Kyoto', city: 'Kyoto', state: 'Kyoto Prefecture', country: 'Japan', countryCode: 'JP', label: 'Kyoto, Japan' },
+  { name: 'Tokyo', city: 'Tokyo', state: 'Tokyo', country: 'Japan', countryCode: 'JP', label: 'Tokyo, Japan' },
+  { name: 'Paris', city: 'Paris', state: 'Île-de-France', country: 'France', countryCode: 'FR', label: 'Paris, France' },
+  { name: 'Rome', city: 'Rome', state: 'Lazio', country: 'Italy', countryCode: 'IT', label: 'Rome, Italy' },
+  { name: 'Florence', city: 'Florence', state: 'Tuscany', country: 'Italy', countryCode: 'IT', label: 'Florence, Italy' },
+  { name: 'Barcelona', city: 'Barcelona', state: 'Catalonia', country: 'Spain', countryCode: 'ES', label: 'Barcelona, Spain' },
+  { name: 'London', city: 'London', state: 'England', country: 'United Kingdom', countryCode: 'GB', label: 'London, United Kingdom' },
+  { name: 'New York', city: 'New York', state: 'New York', country: 'United States', countryCode: 'US', label: 'New York, NY, United States' },
+  { name: 'Bali', city: 'Denpasar', state: 'Bali', country: 'Indonesia', countryCode: 'ID', label: 'Bali, Indonesia' }
+];
+
+function getPopularMatches(query) {
+  const q = query.toLowerCase().trim().replace(/,/g, ' ');
+  const qTokens = q.split(/\s+/).filter(Boolean);
+  return POPULAR_DESTINATIONS.filter(item => {
+    const hay = `${item.name} ${item.district || ''} ${item.city || ''} ${item.state || ''} ${item.country || ''}`.toLowerCase();
+    return qTokens.every(t => hay.includes(t)) || hay.includes(q);
+  }).map((p, idx) => ({
+    id: `pop_${idx}_${p.name.toLowerCase()}`,
+    name: p.name,
+    district: p.district || '',
+    city: p.city || '',
+    state: p.state || '',
+    country: p.country || '',
+    countryCode: p.countryCode,
+    label: p.label,
+    type: 'popular'
+  }));
+}
+
 function formatPlaceLabel(p) {
   const parts = [];
   if (p.name) parts.push(p.name);
@@ -955,12 +999,15 @@ router.get('/places/suggest', async (req, res) => {
     return res.json(cached.results);
   }
 
+  const popularMatches = getPopularMatches(query);
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4000);
 
-    // Primary: Photon OpenStreetMap geocoding with exceptional neighborhood & city coverage
-    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6`;
+    // Primary: Photon OpenStreetMap geocoding with clean query tokens
+    const cleanQuery = query.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(cleanQuery)}&limit=6`;
     const response = await fetch(photonUrl, {
       headers: {
         'User-Agent': 'TripMindAI/1.0 (https://tripmind.app)',
@@ -975,6 +1022,12 @@ router.get('/places/suggest', async (req, res) => {
 
       const seen = new Set();
       const results = [];
+
+      // Include exact popular matches first
+      for (const pop of popularMatches) {
+        seen.add(pop.label.toLowerCase());
+        results.push(pop);
+      }
 
       for (const feat of features) {
         const props = feat.properties || {};
@@ -1001,42 +1054,63 @@ router.get('/places/suggest', async (req, res) => {
         if (results.length >= 6) break;
       }
 
-      placesCache.set(cacheKey, { timestamp: Date.now(), results });
-      if (placesCache.size > 500) {
-        const oldestKey = placesCache.keys().next().value;
-        placesCache.delete(oldestKey);
+      if (results.length > 0) {
+        placesCache.set(cacheKey, { timestamp: Date.now(), results });
+        if (placesCache.size > 500) {
+          const oldestKey = placesCache.keys().next().value;
+          placesCache.delete(oldestKey);
+        }
+        return res.json(results);
       }
-      return res.json(results);
+    } else {
+      throw new Error(`Photon returned HTTP ${response.status}`);
     }
   } catch (err) {
     // If Photon fails or times out, try Open-Meteo geocoding as fallback
     try {
-      const openMeteoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=en&format=json`;
+      const cleanFallbackQuery = query.split(',')[0].trim();
+      const openMeteoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanFallbackQuery)}&count=6&language=en&format=json`;
       const fallbackResp = await fetch(openMeteoUrl, {
         headers: { 'Accept': 'application/json' },
         signal: AbortSignal.timeout(3000)
       });
       if (fallbackResp.ok) {
         const data = await fallbackResp.json();
-        const results = (data.results || []).map(r => {
+        const seen = new Set();
+        const results = [...popularMatches];
+        results.forEach(r => seen.add(r.label.toLowerCase()));
+
+        for (const r of (data.results || [])) {
           const parts = [r.name];
           if (r.admin1 && r.admin1 !== r.name) parts.push(r.admin1);
           if (r.country) parts.push(r.country);
-          return {
+          const label = parts.join(', ');
+          if (seen.has(label.toLowerCase())) continue;
+          seen.add(label.toLowerCase());
+
+          results.push({
             id: `om_${r.id}`,
             name: r.name,
             city: r.name,
             state: r.admin1 || '',
             country: r.country || '',
             countryCode: (r.country_code || '').toUpperCase(),
-            label: parts.join(', '),
+            label,
             type: 'city'
-          };
-        });
-        placesCache.set(cacheKey, { timestamp: Date.now(), results });
-        return res.json(results);
+          });
+          if (results.length >= 6) break;
+        }
+
+        if (results.length > 0) {
+          placesCache.set(cacheKey, { timestamp: Date.now(), results });
+          return res.json(results);
+        }
       }
     } catch (_) {}
+  }
+
+  if (popularMatches.length > 0) {
+    return res.json(popularMatches);
   }
 
   return res.json([]);
@@ -1434,10 +1508,17 @@ CRITICAL RULES:
 
   onProgress?.({ progress: 30, stage: 'Consulting Gemini travel models...' });
 
+  const aiStartTime = Date.now();
+  const MAX_AI_ATTEMPT_MS = 22000;
   let lastError = null;
+
   for (const modelName of CANDIDATE_MODELS) {
     if (signal?.aborted) {
       throw new Error('Operation aborted or timed out');
+    }
+    if (Date.now() - aiStartTime > MAX_AI_ATTEMPT_MS) {
+      console.log(`[AI] Generation time budget of ${MAX_AI_ATTEMPT_MS}ms exceeded; falling back to curated plan.`);
+      break;
     }
 
     try {
@@ -1452,7 +1533,7 @@ CRITICAL RULES:
       });
 
       const timeoutPromise = new Promise((_, reject) => {
-        const t = setTimeout(() => reject(new Error(`Timeout: model ${modelName} exceeded 16s limit`)), 16000);
+        const t = setTimeout(() => reject(new Error(`Timeout: model ${modelName} exceeded 10s limit`)), 10000);
         if (t.unref) t.unref();
       });
 
@@ -2936,11 +3017,24 @@ router.post('/trips/join/:inviteToken', async (req, res) => {
       `;
     }
 
+    // Return complete trip data for client consumers
+    const fullTripRows = await sql`SELECT * FROM trips WHERE id = ${trip.id} LIMIT 1`;
+    const fullTrip = fullTripRows.length > 0 ? formatTripRow(fullTripRows[0]) : null;
+
     return res.json({
       success: true,
       tripId: trip.id,
-      destination: trip.destination,
-      role: 'member'
+      destination: trip.destination || 'Group Trip',
+      role: 'member',
+      trip: fullTrip || {
+        id: trip.id,
+        destination: trip.destination || 'Group Trip',
+        status: 'Upcoming',
+        role: 'member',
+        userMemberRole: 'member',
+        travelers: currentTravelers,
+        days: []
+      }
     });
   } catch (err) {
     console.error('Join trip error:', err);
@@ -2964,7 +3058,18 @@ router.get('/trips/:tripId/members', async (req, res) => {
       ORDER BY CASE WHEN tm.role = 'owner' THEN 0 ELSE 1 END, tm.joined_at ASC
     `;
 
-    return res.json(rows);
+    // Ensure complete member objects
+    const sanitized = rows.map(r => ({
+      id: r.id || 'unknown',
+      role: r.role || 'member',
+      joinedAt: r.joinedAt || new Date().toISOString(),
+      name: r.name || 'Traveler',
+      displayName: r.name || 'Traveler',
+      avatar: r.avatar || null,
+      initials: r.initials || (r.name ? r.name.slice(0, 2).toUpperCase() : 'TR')
+    }));
+
+    return res.json(sanitized);
   } catch (err) {
     console.error('Fetch members error:', err);
     return res.status(500).json({ error: 'Internal server error fetching group members.' });

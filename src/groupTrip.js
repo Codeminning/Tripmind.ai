@@ -47,14 +47,32 @@ export function extractInviteToken(rawInput) {
   if (!rawInput || typeof rawInput !== 'string') return '';
   const trimmed = rawInput.trim();
 
+  // Try URL parsing
+  try {
+    const url = new URL(trimmed);
+    // 1. Hash routing support e.g. https://breakmind.vercel.app/#/join/abc123 or #join/abc123
+    if (url.hash) {
+      const hashMatch = url.hash.match(/(?:join\/|inviteToken=)([a-zA-Z0-9_-]+)/i);
+      if (hashMatch && hashMatch[1]) return hashMatch[1];
+    }
+    // 2. Query param e.g. ?inviteToken=abc123
+    const qToken = url.searchParams.get('inviteToken');
+    if (qToken) return qToken;
+    // 3. Pathname e.g. /join/abc123
+    const pathMatch = url.pathname.match(/join\/([a-zA-Z0-9_-]+)/i);
+    if (pathMatch && pathMatch[1]) return pathMatch[1];
+  } catch (_) {
+    // Not a valid URL object, fallback to regex
+  }
+
   // Match /join/<token> or #/join/<token> or inviteToken=<token>
   const match = trimmed.match(/(?:join\/|inviteToken=)([a-zA-Z0-9_-]+)/i);
   if (match && match[1]) {
     return match[1];
   }
 
-  // If input contains no slashes or protocols, assume raw token if alphanumeric
-  if (!trimmed.includes('/') && !trimmed.includes(':') && /^[a-zA-Z0-9_-]{10,64}$/.test(trimmed)) {
+  // If input contains no slashes, hashes or protocols, assume raw token if alphanumeric (10-64 chars)
+  if (!trimmed.includes('/') && !trimmed.includes(':') && !trimmed.includes('?') && !trimmed.includes('#') && /^[a-zA-Z0-9_-]{10,64}$/.test(trimmed)) {
     return trimmed;
   }
 

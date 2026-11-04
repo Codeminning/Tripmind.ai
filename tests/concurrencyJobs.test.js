@@ -89,7 +89,7 @@ describe('Backend Concurrency & Background Job Queue', () => {
 
   test('prevents duplicate work by returning existing active job with same parameters', async () => {
     jobQueue.registerWorker('test_idemp_job', async () => {
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 600));
       return { generated: true };
     });
 

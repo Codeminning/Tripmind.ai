@@ -14,6 +14,7 @@ import {
   ShieldCheck
 } from 'lucide-react'
 import { fetchInvitePreview, joinTripByInvite, extractInviteToken } from '../groupTrip'
+import { displayNameOf, upper } from '../utils/safeText'
 
 export { extractInviteToken }
 
@@ -57,12 +58,13 @@ export function JoinByLinkModal({
 
   // Validate and look up invite as user types or pastes
   useEffect(() => {
-    const extracted = extractInviteToken(rawLink)
+    const trimmed = rawLink.trim()
+    const extracted = extractInviteToken(trimmed)
     setToken(extracted)
 
     if (!extracted) {
       setPreview(null)
-      setError(rawLink.trim().length > 15 ? 'Could not recognize a valid group trip invite link or code.' : null)
+      setError(trimmed.length > 3 ? "That doesn't look like a valid group link" : null)
       return
     }
 
@@ -125,7 +127,7 @@ export function JoinByLinkModal({
     }
 
     if (isAlreadyMember) {
-      onJoinSuccess?.(preview.id)
+      onJoinSuccess?.(preview)
       onClose?.()
       return
     }
@@ -134,7 +136,16 @@ export function JoinByLinkModal({
     try {
       const res = await joinTripByInvite({ inviteToken: token, token: currentUser.token })
       showToast?.(`🎒 Successfully joined ${res.destination || preview?.destination || 'the trip party'}!`)
-      onJoinSuccess?.(res.tripId || preview?.id)
+      const completeTrip = res.trip || {
+        id: res.tripId || preview?.id,
+        destination: res.destination || preview?.destination || 'Group Trip',
+        status: 'Upcoming',
+        startDate: preview?.startDate || '',
+        summary: preview?.summary || '',
+        travelers: [displayNameOf(currentUser)],
+        days: []
+      }
+      onJoinSuccess?.(completeTrip)
       onClose?.()
     } catch (err) {
       setError(err.message || 'Could not join group trip.')

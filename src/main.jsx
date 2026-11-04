@@ -1037,6 +1037,11 @@ class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
     this.state = { hasError: false, error: null }
+    this.handleReset = () => {
+      if (this.state.hasError) {
+        this.setState({ hasError: false, error: null })
+      }
+    }
   }
 
   static getDerivedStateFromError(error) {
@@ -1045,6 +1050,26 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('TripMind UI Error Boundary caught:', error, errorInfo)
+  }
+
+  componentDidMount() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('hashchange', this.handleReset)
+      window.addEventListener('popstate', this.handleReset)
+    }
+  }
+
+  componentWillUnmount() {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('hashchange', this.handleReset)
+      window.removeEventListener('popstate', this.handleReset)
+    }
+  }
+
+  componentDidUpdate(prevProps) {
+    if (this.state.hasError && prevProps.locationKey !== this.props.locationKey) {
+      this.setState({ hasError: false, error: null })
+    }
   }
 
   render() {
@@ -1075,17 +1100,33 @@ class ErrorBoundary extends React.Component {
             <p style={{ color: 'var(--muted, #596055)', fontSize: '14px', lineHeight: 1.6, marginBottom: '24px' }}>
               We ran into a small hiccup while rendering the workspace. Click below to reload.
             </p>
-            <button
-              type="button"
-              className="button button-dark"
-              onClick={() => {
-                window.location.hash = ''
-                window.location.reload()
-              }}
-              style={{ margin: '0 auto' }}
-            >
-              Reload TripMind
-            </button>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="button button-dark"
+                onClick={() => {
+                  this.setState({ hasError: false, error: null })
+                  if (typeof window !== 'undefined') {
+                    window.location.hash = ''
+                    window.location.reload()
+                  }
+                }}
+              >
+                <span>Reload TripMind</span>
+              </button>
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => {
+                  this.setState({ hasError: false, error: null })
+                  if (typeof window !== 'undefined') {
+                    window.location.hash = '#/dashboard'
+                  }
+                }}
+              >
+                <span>Back to Dashboard</span>
+              </button>
+            </div>
           </div>
         </div>
       )
