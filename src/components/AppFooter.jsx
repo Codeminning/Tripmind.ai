@@ -16,7 +16,7 @@ export function AppFooter({ onNavigate, currentView }) {
             aria-label="TripMind AI Home"
           >
             <span className="brand-mark">
-              <img src="/tripmind-icon.svg?v=3" alt="TripMind AI logo" width="32" height="32" />
+              <img src="/tripmind-icon.svg?v=3" alt="" aria-hidden="true" width="32" height="32" />
             </span>
             <span>
               tripmind<span className="brand-ai">.ai</span>

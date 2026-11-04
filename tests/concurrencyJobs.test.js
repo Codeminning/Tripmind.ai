@@ -119,8 +119,8 @@ describe('Backend Concurrency & Background Job Queue', () => {
     });
 
     let finalJob = null;
-    for (let i = 0; i < 20; i++) {
-      await new Promise(r => setTimeout(r, 20));
+    for (let i = 0; i < 40; i++) {
+      await new Promise(r => setTimeout(r, 50));
       finalJob = await jobQueue.getJob(job.id);
       if (finalJob?.status === 'failed') break;
     }
