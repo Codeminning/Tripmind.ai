@@ -36,7 +36,7 @@ describe('Backend Concurrency & Background Job Queue', () => {
 
     // Wait for worker tick and Neon write to complete
     let finalJob = null;
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 60; i++) {
       await new Promise(r => setTimeout(r, 100));
       finalJob = await jobQueue.getJob(job.id);
       if (finalJob?.status === 'completed') break;

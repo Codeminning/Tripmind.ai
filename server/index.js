@@ -24,7 +24,8 @@ import {
 const app = express();
 const port = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'tripmind_secret_jwt_key_2026_zen';
-const googleClient = process.env.GOOGLE_CLIENT_ID ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID) : null;
+const serverGoogleClientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+const googleClient = serverGoogleClientId ? new OAuth2Client(serverGoogleClientId) : null;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, '..', 'dist');
 
@@ -352,7 +353,7 @@ router.post('/auth/google', async (req, res) => {
     try {
       const ticket = await googleClient.verifyIdToken({
         idToken: credential,
-        audience: process.env.GOOGLE_CLIENT_ID,
+        audience: serverGoogleClientId,
       });
       payload = ticket.getPayload();
     } catch (err) {

@@ -2,10 +2,10 @@ import 'dotenv/config';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.NEON_DATABASE_URL;
 
 if (!connectionString) {
-  console.warn('⚠️ DATABASE_URL is not set. Database features will be unavailable.');
+  console.warn('⚠️ DATABASE_URL / POSTGRES_URL is not set. Database features will be unavailable.');
 }
 
 export const sql = connectionString ? neon(connectionString) : null;
