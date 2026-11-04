@@ -1,9 +1,23 @@
 {
   "version": 2,
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 8 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api/index.js"
+    },
+    {
+      "source": "/t/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/((?!api|t/).*)",
+      "destination": "/index.html"
     }
   ]
 }

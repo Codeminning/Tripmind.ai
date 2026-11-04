@@ -158,6 +158,7 @@ const LIAM_INITIAL_TRIPS = [
 
 // Helpers for storage
 export function getStoredUsers() {
+  if (typeof localStorage === 'undefined') return DEFAULT_SEED_USERS
   try {
     const raw = localStorage.getItem(USERS_STORAGE_KEY)
     if (!raw) {
@@ -188,6 +189,7 @@ export function saveStoredUsers(users) {
 }
 
 export function getActiveSession() {
+  if (typeof localStorage === 'undefined') return null
   try {
     const raw = localStorage.getItem(SESSION_STORAGE_KEY)
     if (!raw) return null
@@ -466,7 +468,7 @@ export async function registerWithEmail({ name, email, password, travelVibe }) {
       name: cleanName,
       email: cleanEmail,
       password,
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}&backgroundColor=244a3a&textColor=ffffff`,
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}&backgroundColor=2b5143&textColor=ffffff`,
       initials,
       travelVibe: travelVibe || 'Slow & Curious Traveler',
       defaultBudget: 'Mid-range',
@@ -530,8 +532,8 @@ export async function authenticateWithGoogleCredential(credentialToken) {
 export async function authenticateWithGoogle(customProfile = null) {
   const profile = customProfile || {
     name: 'Dhyanesh Visakan',
-    email: 'dhyanesh.visakan@gmail.com',
-    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Dhyanesh%20Visakan&backgroundColor=244a3a&textColor=ffffff',
+    email: 'tripmindaisupport@gmail.com',
+    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Dhyanesh%20Visakan&backgroundColor=2b5143&textColor=ffffff',
     initials: 'DV'
   }
 
@@ -560,7 +562,7 @@ export async function authenticateWithGoogle(customProfile = null) {
       id: `user_google_${Date.now()}`,
       name: profile.name,
       email: profile.email,
-      avatar: profile.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile.name)}&backgroundColor=244a3a&textColor=ffffff`,
+      avatar: profile.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile.name)}&backgroundColor=2b5143&textColor=ffffff`,
       initials: profile.initials || profile.name.slice(0, 2).toUpperCase(),
       travelVibe: 'Food & Culinary Explorer',
       defaultBudget: 'Mid-range',
@@ -596,9 +598,22 @@ export function logOutUser() {
 
 export function updateUserProfile(userId, updates) {
   const users = getStoredUsers()
+  let computedInitials = updates.initials
+  if (!computedInitials && updates.name) {
+    const parts = updates.name.trim().split(' ')
+    computedInitials = parts.length > 1
+      ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+      : updates.name.slice(0, 2).toUpperCase()
+  }
+
+  const finalUpdates = {
+    ...updates,
+    ...(computedInitials ? { initials: computedInitials } : {})
+  }
+
   const updatedUsers = users.map(u => {
     if (u.id === userId) {
-      return { ...u, ...updates }
+      return { ...u, ...finalUpdates }
     }
     return u
   })
@@ -607,7 +622,7 @@ export function updateUserProfile(userId, updates) {
   const currentSession = getActiveSession()
   let newSession = currentSession
   if (currentSession && currentSession.id === userId) {
-    newSession = { ...currentSession, ...updates }
+    newSession = { ...currentSession, ...finalUpdates }
     setActiveSession(newSession)
   }
 
@@ -615,9 +630,40 @@ export function updateUserProfile(userId, updates) {
   fetch('/api/auth/profile', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId, ...updates })
+    body: JSON.stringify({ userId, ...finalUpdates })
   }).catch(e => console.warn('Neon profile update sync failed:', e))
 
   return newSession
+}
+
+export async function deleteUserAccount(userId) {
+  if (!userId) return false
+
+  // 1. Delete from Neon Postgres
+  try {
+    const res = await fetch(`/api/auth/account/${encodeURIComponent(userId)}`, {
+      method: 'DELETE'
+    })
+    if (!res.ok) {
+      console.warn('Neon delete account status:', res.status)
+    }
+  } catch (e) {
+    console.warn('Neon delete account network error:', e)
+  }
+
+  // 2. Remove user from local users store
+  const users = getStoredUsers()
+  const updated = users.filter(u => u.id !== userId)
+  saveStoredUsers(updated)
+
+  // 3. Clear user trips
+  try {
+    localStorage.removeItem(`${USER_TRIPS_PREFIX}${userId}`)
+  } catch (e) {}
+
+  // 4. Clear active session
+  logOutUser()
+
+  return true
 }
 

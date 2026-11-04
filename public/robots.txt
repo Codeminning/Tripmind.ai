@@ -1,0 +1,16 @@
+# TripMind AI - Robots Exclusion Protocol
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /privacy
+Allow: /contact
+Disallow: /dashboard
+Disallow: /#/dashboard
+Disallow: /planner
+Disallow: /#/planner
+Disallow: /login
+Disallow: /#/login
+Disallow: /api/
+
+Sitemap: https://tripmind-ai-gamma.vercel.app/sitemap.xml
+

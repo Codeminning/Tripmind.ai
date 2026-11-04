@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import {
-  Compass,
   ArrowRight,
   Lock,
   Mail,
@@ -20,8 +19,9 @@ import {
   authenticateWithGoogle,
   authenticateWithGoogleCredential
 } from '../auth'
+import { AppFooter } from './AppFooter'
 
-export default function LoginPage({ onLoginSuccess, onCancel }) {
+export default function LoginPage({ onLoginSuccess, onCancel, onNavigate }) {
   const [mode, setMode] = useState('signin') // 'signin' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -31,6 +31,7 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
   const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
 
   const handleEmailSubmit = async (e) => {
     e.preventDefault()
@@ -88,8 +89,8 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
     try {
       const user = await authenticateWithGoogle({
         name: 'Dhyanesh Visakan',
-        email: 'dhyanesh.visakan@gmail.com',
-        avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Dhyanesh%20Visakan&backgroundColor=244a3a&textColor=ffffff',
+        email: 'tripmindaisupport@gmail.com',
+        avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Dhyanesh%20Visakan&backgroundColor=2b5143&textColor=ffffff',
         initials: 'DV'
       })
       onLoginSuccess(user, `Signed in with Google as ${user.name}! ✨`)
@@ -125,7 +126,7 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
 
         <div className="auth-brand">
           <span className="brand-mark">
-            <Compass size={20} strokeWidth={2.2} />
+            <img src="/tripmind-icon.svg?v=3" alt="TripMind AI" />
           </span>
           <span className="auth-brand-text">
             tripmind<span className="brand-ai">.ai</span>
@@ -232,6 +233,14 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
               <div className="auth-alert error" role="alert">
                 <AlertCircle size={18} />
                 <span>{error}</span>
+              </div>
+            )}
+
+            {/* Informational Notice */}
+            {notice && (
+              <div className="auth-alert info" role="status">
+                <Sparkles size={16} />
+                <span>{notice}</span>
               </div>
             )}
 
@@ -362,11 +371,10 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
                     <button
                       type="button"
                       className="forgot-link"
-                      onClick={() =>
-                        alert(
-                          'You can use Google Authentication, demo accounts (sophia@tripmind.ai / explorer123 or liam@tripmind.ai / wanderer123), or create a new free account.'
-                        )
-                      }
+                      onClick={() => {
+                        setError('')
+                        setNotice('Tip: You can use 1-click Google Sign In, select a demo traveler above, or create a new free account anytime.')
+                      }}
                     >
                       Forgot?
                     </button>
@@ -395,8 +403,9 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
 
               {mode === 'signin' && (
                 <div className="remember-row">
-                  <label className="checkbox-label">
+                  <label className="checkbox-label" htmlFor="remember-me">
                     <input
+                      id="remember-me"
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
@@ -429,13 +438,16 @@ export default function LoginPage({ onLoginSuccess, onCancel }) {
 
             <div className="auth-card-footer">
               <div className="auth-security-notice">
-                <ShieldCheck size={16} color="#244a3a" />
+                <ShieldCheck size={16} color="#244a3a" aria-hidden="true" />
                 <span>Your travel plans and personal data are safely saved.</span>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Reachable Footer across Login & Registration View */}
+      <AppFooter onNavigate={onNavigate || onCancel} currentView="login" />
     </div>
   )
 }
