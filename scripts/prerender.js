@@ -27,7 +27,11 @@ async function prerender() {
   const vite = await createServer({
     server: { middlewareMode: true },
     appType: 'custom',
-    root: rootDir
+    root: rootDir,
+    optimizeDeps: {
+      noDiscovery: true, // skip the automatic dependency scan entirely
+      include: [], // nothing needs pre-bundling for a single SSR load
+    },
   })
 
   try {
