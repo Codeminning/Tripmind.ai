@@ -1599,7 +1599,7 @@ CRITICAL RULES:
 
   console.log('Gemini models unavailable, returning high quality curated smart fallback.');
   const safeFallback = generateCuratedFallback({ destination: cleanDest, startDate, days: tripDays, budget, travelers: numTravelers, interests });
-  safeFallback.note = 'Generated via TripMind smart planner.';
+  safeFallback.note = 'Generated via Planora smart planner.';
   return safeFallback;
 }
 
@@ -1754,7 +1754,7 @@ router.post('/itinerary', async (req, res) => {
       travelers: data.travelers,
       interests: data.interests
     });
-    safeFallback.note = 'Generated via TripMind smart planner.';
+    safeFallback.note = 'Generated via Planora smart planner.';
     return res.json(safeFallback);
   }
 });
@@ -1829,7 +1829,7 @@ router.all('/contact', async (req, res) => {
 
   if (timestamps.length >= CONTACT_RATE_LIMIT_MAX) {
     return res.status(429).json({
-      error: 'You have sent several messages recently. Please wait about an hour before trying again, or email us directly at tripmindaisupport@gmail.com.'
+      error: 'You have sent several messages recently. Please wait about an hour before trying again, or email us directly at planora.coresupport@gmail.com.'
     });
   }
 
@@ -1838,12 +1838,12 @@ router.all('/contact', async (req, res) => {
   if (!resendKey) {
     console.error('[Contact] RESEND_API_KEY is not configured.');
     return res.status(500).json({
-      error: 'Could not send your message. Please email us directly at tripmindaisupport@gmail.com.'
+      error: 'Could not send your message. Please email us directly at planora.coresupport@gmail.com.'
     });
   }
 
   const resend = new Resend(resendKey);
-  const emailSubject = `[TripMind Contact] ${cleanSubject || 'New message'} (from ${cleanName})`;
+  const emailSubject = `[Planora Contact] ${cleanSubject || 'New message'} (from ${cleanName})`;
   const safeName = escapeHtmlStrict(cleanName);
   const safeEmail = escapeHtmlStrict(cleanEmail);
   const safeSubject = escapeHtmlStrict(cleanSubject || 'General');
@@ -1851,8 +1851,8 @@ router.all('/contact', async (req, res) => {
 
   try {
     const { error } = await resend.emails.send({
-      from: 'TripMind <onboarding@resend.dev>',
-      to: 'tripmindaisupport@gmail.com',
+      from: 'Planora <onboarding@resend.dev>',
+      to: 'planora.coresupport@gmail.com',
       replyTo: cleanEmail,
       subject: emailSubject,
       html: `
@@ -1866,7 +1866,7 @@ router.all('/contact', async (req, res) => {
           <div style="margin-top:16px;padding:16px;background:#f7f6f2;border-radius:8px;font-size:14px;line-height:1.7;color:#20251f;">
             ${safeMessage}
           </div>
-          <p style="margin-top:20px;font-size:11px;color:#999;">Sent via TripMind contact form</p>
+          <p style="margin-top:20px;font-size:11px;color:#999;">Sent via Planora contact form</p>
         </div>
       `
     });
@@ -1874,7 +1874,7 @@ router.all('/contact', async (req, res) => {
     if (error) {
       console.error('[Contact] Resend API error:', error.message || error);
       return res.status(500).json({
-        error: 'Could not send your message. Please email us directly at tripmindaisupport@gmail.com.'
+        error: 'Could not send your message. Please email us directly at planora.coresupport@gmail.com.'
       });
     }
 
@@ -1886,7 +1886,7 @@ router.all('/contact', async (req, res) => {
   } catch (err) {
     console.error('[Contact] Resend send error:', err.message || err);
     return res.status(500).json({
-      error: 'Could not send your message. Please email us directly at tripmindaisupport@gmail.com.'
+      error: 'Could not send your message. Please email us directly at planora.coresupport@gmail.com.'
     });
   }
 });
@@ -2118,9 +2118,9 @@ router.post('/trip-chat', async (req, res) => {
       return `Day ${d.day} ("${d.title || ''}"):\n${acts}`;
     }).join('\n\n');
 
-    const historyFormatted = recentHistory.map(m => `${m.role === 'user' ? 'Traveler' : 'TripMind'}: ${m.content}`).join('\n');
+    const historyFormatted = recentHistory.map(m => `${m.role === 'user' ? 'Traveler' : 'Planora'}: ${m.content}`).join('\n');
 
-    const systemPrompt = `You are TripMind AI, an intelligent, honest, and culturally insightful travel concierge.
+    const systemPrompt = `You are Planora, an intelligent, honest, and culturally insightful travel concierge.
 The traveler is asking questions or requesting updates to their current trip itinerary.
 
 TRIP DETAILS:
@@ -2464,7 +2464,7 @@ router.post('/trips/:tripId/checklist/generate', async (req, res) => {
       return res.json({ checklist: fallback, generatedBy: 'fallback' });
     }
 
-    const prompt = `You are TripMind AI, an expert travel organizer.
+    const prompt = `You are Planora, an expert travel organizer.
 Generate a tailored packing and preparation checklist for a trip to: ${dest}
 Start Date: ${targetTrip?.startDate || 'Flexible'}
 Duration: ${targetTrip?.days?.length || 4} days.
@@ -2601,14 +2601,14 @@ router.get('/reminders/unsubscribe', async (req, res) => {
     return res.send(`
       <!doctype html>
       <html>
-        <head><title>Unsubscribed — TripMind AI</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+        <head><title>Unsubscribed — Planora</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
         <body style="font-family: -apple-system, sans-serif; background: #f7f6f2; color: #1f2723; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 20px;">
           <div style="background: #ffffff; padding: 36px; border-radius: 12px; border: 1px solid #e6e3da; max-width: 440px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
             <h2 style="margin: 0 0 12px; font-size: 22px;">You've been unsubscribed</h2>
             <p style="color: #67726d; line-height: 1.6; margin: 0 0 24px; font-size: 14px;">
-              You will no longer receive trip countdown and reminder emails for <strong>${escapeHtml(email)}</strong>. You can re-enable them anytime in your TripMind Dashboard Settings.
+              You will no longer receive trip countdown and reminder emails for <strong>${escapeHtml(email)}</strong>. You can re-enable them anytime in your Planora Dashboard Settings.
             </p>
-            <a href="/" style="display: inline-block; background: #2b5143; color: #ffffff; padding: 10px 20px; border-radius: 20px; text-decoration: none; font-size: 14px; font-weight: 600;">Back to TripMind</a>
+            <a href="/" style="display: inline-block; background: #2b5143; color: #ffffff; padding: 10px 20px; border-radius: 20px; text-decoration: none; font-size: 14px; font-weight: 600;">Back to Planora</a>
           </div>
         </body>
       </html>
@@ -2708,11 +2708,11 @@ router.all('/cron/reminders', async (req, res) => {
         if (trip.email_reminders_enabled && resendClient && trip.user_email) {
           try {
             const unsubscribeUrl = `https://tripmind-ai-gamma.vercel.app/api/reminders/unsubscribe?email=${encodeURIComponent(trip.user_email)}`;
-            const emailSubject = `[TripMind] 🌿 ${diffDays} days to go until ${trip.destination}!`;
+            const emailSubject = `[Planora] 🌿 ${diffDays} days to go until ${trip.destination}!`;
             const emailHtml = `
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 28px; background: #ffffff; border: 1px solid #e6e3da; border-radius: 12px;">
                 <div style="text-align: center; margin-bottom: 24px;">
-                  <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: #2b5143;">TripMind Travel Concierge</span>
+                  <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: #2b5143;">Planora Travel Concierge</span>
                   <h1 style="font-family: Georgia, serif; font-size: 26px; color: #1f2723; margin: 8px 0;">${diffDays} days to go until ${escapeHtml(trip.destination)}!</h1>
                   <p style="color: #67726d; font-size: 15px; margin: 0;">Start date: ${escapeHtml(trip.start_date)}</p>
                 </div>
@@ -2729,14 +2729,14 @@ router.all('/cron/reminders', async (req, res) => {
                 </div>
                 <hr style="border: none; border-top: 1px solid #e6e3da; margin: 24px 0;" />
                 <p style="font-size: 11px; color: #8a948e; text-align: center; line-height: 1.5; margin: 0;">
-                  You received this because email reminders are enabled on your TripMind account.<br />
+                  You received this because email reminders are enabled on your Planora account.<br />
                   <a href="${unsubscribeUrl}" style="color: #67726d; text-decoration: underline;">Unsubscribe from countdown emails</a>
                 </p>
               </div>
             `;
 
             const { error: resendError } = await resendClient.emails.send({
-              from: 'TripMind <onboarding@resend.dev>',
+              from: 'Planora <onboarding@resend.dev>',
               to: trip.user_email,
               subject: emailSubject,
               html: emailHtml
@@ -3902,7 +3902,7 @@ app.get('/t/:shareId', async (req, res) => {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TripMind AI — Your trip, thoughtfully planned</title>
+    <title>Planora — Your trip, thoughtfully planned</title>
   </head>
   <body>
     <div id="root"></div>
@@ -3913,8 +3913,8 @@ app.get('/t/:shareId', async (req, res) => {
 
   if (trip) {
     const dest = escapeHtml(trip.destination);
-    const summary = escapeHtml(trip.summary || `Personalized trip itinerary for ${trip.destination}, thoughtfully curated by TripMind AI.`);
-    const pageTitle = `${dest} Itinerary — TripMind AI`;
+    const summary = escapeHtml(trip.summary || `Personalized trip itinerary for ${trip.destination}, thoughtfully curated by Planora.`);
+    const pageTitle = `${dest} Itinerary — Planora`;
     const pageUrl = `https://tripmind-ai-gamma.vercel.app/t/${encodeURIComponent(shareId)}`;
 
     html = html

@@ -57,11 +57,14 @@ export default function LoginPage({ onLoginSuccess, onCancel, onNavigate }) {
         }
       })
 
+      const containerWidth = Math.min(400, Math.max(280, googleButtonRef.current?.offsetWidth || 380))
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         type: 'standard',
         theme: 'outline',
         size: 'large',
-        width: 320,
+        shape: 'rectangular',
+        logo_alignment: 'left',
+        width: containerWidth,
         text: 'continue_with'
       })
 
@@ -116,7 +119,7 @@ export default function LoginPage({ onLoginSuccess, onCancel, onNavigate }) {
         onLoginSuccess(user, `Welcome back, ${user.name}! 🌿`)
       } else {
         const user = await registerWithEmail({ name, email, password, travelVibe })
-        onLoginSuccess(user, `Account created! Welcome to TripMind, ${user.name} ✨`)
+        onLoginSuccess(user, `Account created! Welcome to Planora, ${user.name} ✨`)
       }
     } catch (err) {
       setError(err.message || 'Authentication failed. Please check your credentials.')
@@ -150,10 +153,10 @@ export default function LoginPage({ onLoginSuccess, onCancel, onNavigate }) {
 
         <div className="auth-brand">
           <span className="brand-mark">
-            <img src="/tripmind-icon.svg?v=3" alt="TripMind AI" />
+            <img src="/tripmind-icon.svg?v=3" alt="Planora" />
           </span>
           <span className="auth-brand-text">
-            tripmind<span className="brand-ai">.ai</span>
+            planora
           </span>
         </div>
 
@@ -202,7 +205,7 @@ export default function LoginPage({ onLoginSuccess, onCancel, onNavigate }) {
             </div>
 
             <div className="auth-quote-card">
-              <p>“TripMind completely changed how I explore. No frantic spreadsheets, just beautiful, balanced days.”</p>
+              <p>“Planora completely changed how I explore. No frantic spreadsheets, just beautiful, balanced days.”</p>
               <div className="auth-quote-author">
                 <div className="auth-mini-avatar">DV</div>
                 <div>
@@ -243,7 +246,7 @@ export default function LoginPage({ onLoginSuccess, onCancel, onNavigate }) {
 
             <div className="auth-header">
               <h3>
-                {mode === 'signin' ? 'Welcome back to TripMind' : 'Create your travel workspace'}
+                {mode === 'signin' ? 'Welcome back to Planora' : 'Create your travel workspace'}
               </h3>
               <p>
                 {mode === 'signin'
@@ -279,7 +282,7 @@ export default function LoginPage({ onLoginSuccess, onCancel, onNavigate }) {
                   disabled={loading}
                   aria-label="Continue with Google"
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
                     <path
                       fill="#4285F4"
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -300,31 +303,6 @@ export default function LoginPage({ onLoginSuccess, onCancel, onNavigate }) {
                   <span>Continue with Google</span>
                 </button>
               )}
-            </div>
-
-            {/* Quick Demo Travelers */}
-            <div className="demo-accounts-pill-box">
-              <span className="demo-pill-title">⚡ Or test with 1-click traveler accounts:</span>
-              <div className="demo-pill-actions">
-                <button
-                  type="button"
-                  className="demo-pill-btn"
-                  onClick={() => handleQuickDemo('sophia@tripmind.ai', 'explorer123')}
-                  title="Sign in as Sophia (2 saved trips: Kyoto & Amalfi)"
-                >
-                  <span className="avatar-chip">SC</span>
-                  <span>Sophia (Slow Explorer)</span>
-                </button>
-                <button
-                  type="button"
-                  className="demo-pill-btn"
-                  onClick={() => handleQuickDemo('liam@tripmind.ai', 'wanderer123')}
-                  title="Sign in as Liam (Saved trip in Oaxaca)"
-                >
-                  <span className="avatar-chip">LV</span>
-                  <span>Liam (Foodie)</span>
-                </button>
-              </div>
             </div>
 
             <div className="auth-divider">

@@ -109,7 +109,7 @@ export default function SharedTripView({ shareId, onNavigateHome }) {
         <header className="shared-trip-nav">
           <div className="shared-nav-brand brand" onClick={onNavigateHome} role="button" tabIndex={0}>
             <Sparkles size={20} className="brand-logo-icon" />
-            <span className="brand-logo-text">tripmind<span className="brand-ai">.ai</span></span>
+            <span className="brand-logo-text">planora</span>
           </div>
         </header>
         <div className="shared-loading-state" role="status" aria-live="polite">
@@ -127,7 +127,7 @@ export default function SharedTripView({ shareId, onNavigateHome }) {
         <header className="shared-trip-nav">
           <div className="shared-nav-brand brand" onClick={onNavigateHome} role="button" tabIndex={0}>
             <Sparkles size={20} className="brand-logo-icon" />
-            <span className="brand-logo-text">tripmind<span className="brand-ai">.ai</span></span>
+            <span className="brand-logo-text">planora</span>
           </div>
           <button type="button" className="button button-dark btn-sm" onClick={onNavigateHome}>
             Plan Your Own Trip
@@ -139,7 +139,7 @@ export default function SharedTripView({ shareId, onNavigateHome }) {
           <h3>Itinerary Not Available</h3>
           <p>{error || 'This shared trip link may have expired or was set to private by the creator.'}</p>
           <button type="button" className="button button-dark" onClick={onNavigateHome}>
-            <span>Explore TripMind AI</span>
+            <span>Explore Planora</span>
           </button>
         </div>
       </div>
@@ -150,9 +150,9 @@ export default function SharedTripView({ shareId, onNavigateHome }) {
     <div className="shared-trip-page-root">
       {/* Top Navigation */}
       <header className="shared-trip-nav">
-        <div className="shared-nav-brand brand" onClick={onNavigateHome} role="button" tabIndex={0} title="TripMind Home">
+        <div className="shared-nav-brand brand" onClick={onNavigateHome} role="button" tabIndex={0} title="Planora Home">
           <Sparkles size={20} className="brand-logo-icon" />
-          <span className="brand-logo-text">tripmind<span className="brand-ai">.ai</span></span>
+          <span className="brand-logo-text">planora</span>
           <span className="shared-tag-pill">Shared Itinerary</span>
         </div>
         <div className="shared-nav-actions">

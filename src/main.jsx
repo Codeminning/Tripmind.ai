@@ -507,13 +507,13 @@ export default function App() {
             e.preventDefault()
             navigateToView('landing')
           }}
-          aria-label="TripMind AI home"
+          aria-label="Planora home"
         >
           <span className="brand-mark">
-            <img src="/tripmind-icon.svg?v=3" alt="TripMind AI logo" width="32" height="32" />
+            <img src="/tripmind-icon.svg?v=3" alt="Planora logo" width="32" height="32" />
           </span>
           <span>
-            tripmind<span className="brand-ai">.ai</span>
+            planora
           </span>
         </a>
 
@@ -778,7 +778,7 @@ export default function App() {
             <span>Example itinerary</span>
           </div>
           <div className="sample-header">
-            <h2>See what TripMind creates</h2>
+            <h2>See what Planora creates</h2>
             <p>A 3-day trip to Jaipur — generated in seconds.</p>
           </div>
 
@@ -973,7 +973,7 @@ export default function App() {
         </section>
 
         {/* Unified Editorial Call to Action */}
-        <section className="closing section-container" id="why-tripmind">
+        <section className="closing section-container" id="why-planora">
           <div className="closing-content">
             <div className="closing-eyebrow">
               <Sparkles size={14} /> YOUR PERSONAL TRAVEL WORKSPACE
@@ -1022,7 +1022,7 @@ export default function App() {
               </button>
             )}
           </div>
-          <span className="closing-mark">TRIPMIND / 2026</span>
+          <span className="closing-mark">PLANORA / 2026</span>
         </section>
 
       </main>
@@ -1112,7 +1112,7 @@ class ErrorBoundary extends React.Component {
                   }
                 }}
               >
-                <span>Reload TripMind</span>
+                <span>Reload Planora</span>
               </button>
               <button
                 type="button"

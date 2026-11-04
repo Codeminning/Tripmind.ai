@@ -192,7 +192,7 @@ export function JoinByLinkModal({
             <div>
               <strong>Where to get a link?</strong>
               <p>
-                Ask the trip organizer for their private TripMind invite URL. Joining connects you to the live synchronized itinerary, group voting, and shared expense splitting.
+                Ask the trip organizer for their private Planora invite URL. Joining connects you to the live synchronized itinerary, group voting, and shared expense splitting.
               </p>
             </div>
           </div>

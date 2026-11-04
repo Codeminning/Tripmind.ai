@@ -83,7 +83,7 @@ export function JoinTripView({
               className="button button-dark"
               onClick={onBackToApp}
             >
-              <span>Back to TripMind</span>
+              <span>Back to Planora</span>
             </button>
           </div>
         ) : tripPreview ? (

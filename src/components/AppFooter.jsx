@@ -13,13 +13,13 @@ export function AppFooter({ onNavigate, currentView }) {
               e.preventDefault()
               onNavigate?.('landing')
             }}
-            aria-label="TripMind AI Home"
+            aria-label="Planora Home"
           >
             <span className="brand-mark">
               <img src="/tripmind-icon.svg?v=3" alt="" aria-hidden="true" width="32" height="32" />
             </span>
             <span>
-              tripmind<span className="brand-ai">.ai</span>
+              planora
             </span>
           </a>
           <nav className="footer-nav-row" aria-label="Footer Navigation">
@@ -83,10 +83,10 @@ export function AppFooter({ onNavigate, currentView }) {
         }}>
           <span>Prices, timings, and availability are AI-generated estimates. Please verify before booking.</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <a href="mailto:tripmindaisupport@gmail.com" style={{ color: 'inherit', textDecoration: 'underline' }}>
-              tripmindaisupport@gmail.com
+            <a href="mailto:planora.coresupport@gmail.com" style={{ color: 'inherit', textDecoration: 'underline' }}>
+              planora.coresupport@gmail.com
             </a>
-            <span>DESIGNED TO WANDER © 2026 TRIPMIND AI</span>
+            <span>DESIGNED TO WANDER © 2026 PLANORA</span>
           </span>
         </div>
       </div>

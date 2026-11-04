@@ -311,7 +311,7 @@ export function BudgetView({
           <strong className="metric-value">
             {formatLocal(totalEstimatedUsd, selectedTripCurrency?.code)}
           </strong>
-          <small className="metric-sub">Priced by TripMind AI</small>
+          <small className="metric-sub">Priced by Planora</small>
         </div>
 
         <div className="budget-metric-card">

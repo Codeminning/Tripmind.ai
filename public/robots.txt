@@ -1,4 +1,4 @@
-# TripMind AI - Robots Exclusion Protocol
+# Planora - Robots Exclusion Protocol
 User-agent: *
 Allow: /
 Allow: /about

@@ -271,7 +271,7 @@ export function ChecklistView({ trip, currentUser, showToast }) {
       {/* AI Disclaimer */}
       <div className="trip-sheet-disclaimer" role="note" style={{ marginTop: '16px' }}>
         <AlertCircle size={14} aria-hidden="true" />
-        <span>Checklist items are tailored recommendations by TripMind AI. Always verify official visa, passport, and customs requirements for your destination before traveling.</span>
+        <span>Checklist items are tailored recommendations by Planora. Always verify official visa, passport, and customs requirements for your destination before traveling.</span>
       </div>
     </div>
   )

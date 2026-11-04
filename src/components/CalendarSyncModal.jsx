@@ -153,7 +153,7 @@ export function CalendarSyncModal({
 
   // Handle Disconnect
   const handleDisconnect = async () => {
-    if (!confirm('Disconnect your Google Calendar from TripMind?')) return
+    if (!confirm('Disconnect your Google Calendar from Planora?')) return
 
     setDisconnecting(true)
     try {

@@ -153,8 +153,8 @@ export function GroupInviteModal({
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
-          title: `TripMind AI: Join our trip to ${destName}`,
-          text: `Join my group trip to ${destName} on TripMind AI!`,
+          title: `Planora: Join our trip to ${destName}`,
+          text: `Join my group trip to ${destName} on Planora!`,
           url: fullUrl
         })
         setShared(true)

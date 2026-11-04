@@ -3193,29 +3193,39 @@ button.brand:hover,
 
 .auth-social-section {
   margin-bottom: 16px;
+  width: 100%;
 }
 
 .google-auth-btn {
   width: 100%;
+  max-width: 400px;
   height: 48px;
-  border-radius: var(--radius-sm);
-  border: 1px solid #d5d9d1;
+  padding: 0 16px;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--line);
   background: #ffffff;
   color: #3c4043;
-  font-size: 13.5px;
+  font-family: inherit;
+  font-size: 14px;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  transition: all 0.2s;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
 }
 
 .google-auth-btn:hover {
-  background: #f9faf8;
-  border-color: #bcc3b6;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  background: #f7f7f5;
+  border-color: var(--line);
+}
+
+.google-auth-btn:focus-visible {
+  outline: 2px solid var(--green, #2b5143);
+  outline-offset: 2px;
 }
 
 .demo-accounts-pill-box {
@@ -4498,21 +4508,88 @@ button.brand:hover,
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .back-to-list-btn {
   border: 0;
   background: transparent;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--green);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 4px;
+  transition: opacity 0.15s ease;
+}
+
+.back-to-list-btn:hover {
+  opacity: 0.8;
 }
 
 .workspace-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.workspace-secondary-group,
+.trip-actions-group {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.workspace-secondary-group > button,
+.workspace-secondary-group > a,
+.trip-actions-group > button,
+.trip-actions-group > a {
+  width: auto;
+  white-space: nowrap;
+}
+
+.workspace-actions .button {
+  height: 44px;
+  min-height: 44px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  box-sizing: border-box;
+}
+
+.workspace-actions .delete-trip-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: #a4ab9f;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.workspace-actions .delete-trip-btn:hover {
+  color: #b33924;
+  background: #fbeee9;
+  border-color: #f8d7d2;
 }
 
 .trip-sheet-card {

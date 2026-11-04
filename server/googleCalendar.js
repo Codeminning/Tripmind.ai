@@ -296,7 +296,7 @@ export function buildGoogleTripEvents(trip) {
     key: `overview_${trip.id || 'main'}`,
     payload: {
       summary: `✈️ Trip to ${trip.destination || 'Destination'}`,
-      description: `${trip.summary || `Personalized trip to ${trip.destination}`}\n\n${trip.travelTip ? `Local Tip: ${trip.travelTip}\n` : ''}Planned with TripMind AI`,
+      description: `${trip.summary || `Personalized trip to ${trip.destination}`}\n\n${trip.travelTip ? `Local Tip: ${trip.travelTip}\n` : ''}Planned with Planora`,
       location: trip.destination || '',
       start: { date: startIso },
       end: { date: endIso },

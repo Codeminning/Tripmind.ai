@@ -24,7 +24,7 @@ function TrustHeader({ tag, title, meta, onBack }) {
       <div className="legal-back-row">
         <button type="button" className="legal-back-btn" onClick={onBack}>
           <ArrowLeft size={16} aria-hidden="true" />
-          <span>Back to TripMind</span>
+          <span>Back to Planora</span>
         </button>
       </div>
       <span className="legal-tag">{tag}</span>
@@ -40,7 +40,7 @@ export function AboutPage({ onBack, onStartPlanning, onNavigate }) {
     <div className="legal-page-shell">
       <div className="legal-container">
         <TrustHeader
-          tag="About TripMind AI"
+          tag="About Planora"
           title="Slow travel, thoughtfully planned."
           meta="Published October 2026"
           onBack={onBack}
@@ -48,14 +48,14 @@ export function AboutPage({ onBack, onStartPlanning, onNavigate }) {
 
         <div className="legal-content">
           <section className="legal-section">
-            <h2>What TripMind Does</h2>
+            <h2>What Planora Does</h2>
             <p>
-              TripMind AI is an intelligent travel concierge designed for travelers who prefer slow, immersive exploration
+              Planora is an intelligent travel concierge designed for travelers who prefer slow, immersive exploration
               over cookie-cutter tourist checklists. We rescue travelers from 30 open browser tabs, spreadsheet chaos, and
               unreliable review blogs.
             </p>
             <p>
-              Tell us where you want to go, and TripMind crafts an unhurried, day-by-day plan with neighborhood cafes,
+              Tell us where you want to go, and Planora crafts an unhurried, day-by-day plan with neighborhood cafes,
               cultural gems, transparent local budget estimates, and custom packing checklists.
             </p>
             <ul>
@@ -74,14 +74,14 @@ export function AboutPage({ onBack, onStartPlanning, onNavigate }) {
           <section className="legal-section">
             <h2>Who Built It</h2>
             <p>
-              TripMind was created by a traveler and software engineer who believes travel tools should feel calm,
+              Planora was created by a traveler and software engineer who believes travel tools should feel calm,
               editorial, and honest.
             </p>
             <div className="legal-highlight-box founder-card">
               <div className="founder-name"><strong>DHYANESH VISAKAN</strong></div>
               <div className="founder-title">FOUNDER</div>
               <div className="founder-email">
-                <a href="mailto:tripmindaisupport@gmail.com">tripmindaisupport@gmail.com</a>
+                <a href="mailto:planora.coresupport@gmail.com">planora.coresupport@gmail.com</a>
               </div>
             </div>
             <p style={{ marginTop: '14px' }}>
@@ -124,7 +124,7 @@ export function PrivacyPage({ onBack, onNavigate }) {
           <section className="legal-section">
             <h2>1. Our Commitment: We Do Not Sell Your Data</h2>
             <p>
-              At TripMind AI, we respect your privacy. <strong>We do not sell, rent, monetize, or trade your personal data or travel plans with third-party data brokers or advertisers.</strong>
+              At Planora, we respect your privacy. <strong>We do not sell, rent, monetize, or trade your personal data or travel plans with third-party data brokers or advertisers.</strong>
             </p>
           </section>
 
@@ -141,7 +141,7 @@ export function PrivacyPage({ onBack, onNavigate }) {
                 <strong>Expenses & Budget Split:</strong> Expense entries, payment records, currency preferences, and traveler split allocations are stored in Neon for logged-in accounts, and stored strictly in browser local storage for guest travelers.
               </li>
               <li>
-                <strong>Local Storage (`localStorage`):</strong> If you use TripMind in guest mode, your planned itineraries and budget logs are stored only in your local browser storage (`localStorage`). We also store your light/dark theme preference locally. Guest data is never transmitted to our database unless you sign in or create an account to save them.
+                <strong>Local Storage (`localStorage`):</strong> If you use Planora in guest mode, your planned itineraries and budget logs are stored only in your local browser storage (`localStorage`). We also store your light/dark theme preference locally. Guest data is never transmitted to our database unless you sign in or create an account to save them.
               </li>
             </ul>
           </section>
@@ -149,7 +149,7 @@ export function PrivacyPage({ onBack, onNavigate }) {
           <section className="legal-section">
             <h2>3. AI Processing & Third-Party Integrations</h2>
             <p>
-              TripMind integrates with privacy-focused third-party services to deliver an intelligent travel experience:
+              Planora integrates with privacy-focused third-party services to deliver an intelligent travel experience:
             </p>
             <ul>
               <li>
@@ -195,7 +195,7 @@ export function PrivacyPage({ onBack, onNavigate }) {
             <div className="legal-highlight-box">
               <p style={{ margin: '0 0 8px' }}><strong>Official contact & policy governance:</strong></p>
               <ul style={{ margin: 0, paddingLeft: '18px' }}>
-                <li><strong>Contact & Privacy Email:</strong> <a href="mailto:tripmindaisupport@gmail.com">tripmindaisupport@gmail.com</a></li>
+                <li><strong>Contact & Privacy Email:</strong> <a href="mailto:planora.coresupport@gmail.com">planora.coresupport@gmail.com</a></li>
                 <li><strong>Data Retention Period:</strong> 12 months from last login activity for inactive accounts; active accounts retain trips until manually deleted in Settings.</li>
                 <li><strong>Governing Jurisdiction:</strong> Republic of India and applicable data privacy frameworks.</li>
               </ul>
@@ -247,13 +247,13 @@ export function ContactPage({ onBack, onNavigate }) {
       } else {
         setStatus('error')
         setStatusMessage(
-          data.error || 'Something went wrong. Please email us directly at tripmindaisupport@gmail.com.'
+          data.error || 'Something went wrong. Please email us directly at planora.coresupport@gmail.com.'
         )
       }
     } catch (err) {
       setStatus('error')
       setStatusMessage(
-        'Network error. Please email us directly at tripmindaisupport@gmail.com.'
+        'Network error. Please email us directly at planora.coresupport@gmail.com.'
       )
     }
   }
@@ -263,7 +263,7 @@ export function ContactPage({ onBack, onNavigate }) {
       <div className="legal-container">
         <TrustHeader
           tag="Get in Touch"
-          title="Contact the TripMind Team"
+          title="Contact the Planora Team"
           meta="We'd love to hear from you."
           onBack={onBack}
         />
@@ -279,11 +279,11 @@ export function ContactPage({ onBack, onNavigate }) {
                 <h3>Direct Email Support</h3>
                 <p style={{ marginBottom: '6px' }}>Click to email our team directly:</p>
                 <a
-                  href="mailto:tripmindaisupport@gmail.com"
+                  href="mailto:planora.coresupport@gmail.com"
                   className="contact-mailto-link"
                   style={{ color: 'var(--green, #2b5143)', fontWeight: 700, fontSize: '15px', textDecoration: 'underline' }}
                 >
-                  tripmindaisupport@gmail.com
+                  planora.coresupport@gmail.com
                 </a>
               </div>
             </div>
@@ -295,8 +295,8 @@ export function ContactPage({ onBack, onNavigate }) {
               <div>
                 <h3>Privacy Inquiries</h3>
                 <p>For data export or policy requests:</p>
-                <a href="mailto:tripmindaisupport@gmail.com" style={{ color: 'var(--green, #2b5143)', fontWeight: 600 }}>
-                  tripmindaisupport@gmail.com
+                <a href="mailto:planora.coresupport@gmail.com" style={{ color: 'var(--green, #2b5143)', fontWeight: 600 }}>
+                  planora.coresupport@gmail.com
                 </a>
               </div>
             </div>

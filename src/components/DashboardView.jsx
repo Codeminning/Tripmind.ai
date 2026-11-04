@@ -1346,10 +1346,10 @@ export default function DashboardView({
             title="Return to Public Explore Page"
           >
             <span className="brand-mark">
-              <img src="/tripmind-icon.svg?v=3" alt="TripMind AI" />
+              <img src="/tripmind-icon.svg?v=3" alt="Planora" />
             </span>
             <span>
-              tripmind<span className="brand-ai">.ai</span>
+              planora
             </span>
           </button>
           <span className="dashboard-tag">Personal Workspace</span>
@@ -1813,7 +1813,7 @@ export default function DashboardView({
               </div>
               <h2>Plan an adventure tailored to you.</h2>
               <p>
-                Tell us where you want to go. TripMind crafts an unhurried, day-by-day plan
+                Tell us where you want to go. Planora crafts an unhurried, day-by-day plan
                 with neighborhood spots, estimated costs, and morning coffee recommendations.
               </p>
             </div>
@@ -2186,60 +2186,62 @@ export default function DashboardView({
                     ← Back to all saved plans
                   </button>
                   <div className="workspace-actions">
-                    <button
-                      type="button"
-                      className={`button ${tripViewTab === 'chat' ? 'button-dark' : 'button-secondary'}`}
-                      onClick={() => setTripViewTab(tripViewTab === 'chat' ? 'itinerary' : 'chat')}
-                      title="Chat with your itinerary using AI"
-                    >
-                      <MessageSquare size={15} />
-                      <span>{tripViewTab === 'chat' ? 'View Itinerary' : 'Chat with Trip'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-secondary"
-                      onClick={handleOpenShare}
-                      title="Create or manage public share link"
-                    >
-                      <Share2 size={15} />
-                      <span>Share</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-secondary"
-                      onClick={() => setGroupModalOpen(true)}
-                      title="Invite travelers and collaborate on this group trip"
-                    >
-                      <Users size={15} />
-                      <span>Group Trip</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-secondary"
-                      onClick={() => setCalendarSyncOpen(true)}
-                      title="Add to Google Calendar or export .ics"
-                    >
-                      <Calendar size={15} />
-                      <span>Add to calendar</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-secondary"
-                      onClick={handlePrint}
-                      title="Print PDF of itinerary"
-                    >
-                      <Printer size={15} />
-                      <span>Print PDF</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-secondary"
-                      onClick={() => copyTripMarkdown(selectedTrip)}
-                      title="Copy itinerary as Markdown"
-                    >
-                      <Download size={15} />
-                      <span>Copy Markdown</span>
-                    </button>
+                    <div className="workspace-secondary-group trip-actions-group">
+                      <button
+                        type="button"
+                        className={`button ${tripViewTab === 'chat' ? 'button-dark' : 'button-secondary'}`}
+                        onClick={() => setTripViewTab(tripViewTab === 'chat' ? 'itinerary' : 'chat')}
+                        title="Chat with your itinerary using AI"
+                      >
+                        <MessageSquare size={15} />
+                        <span>{tripViewTab === 'chat' ? 'View Itinerary' : 'Chat with Trip'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={handleOpenShare}
+                        title="Create or manage public share link"
+                      >
+                        <Share2 size={15} />
+                        <span>Share</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={() => setGroupModalOpen(true)}
+                        title="Invite travelers and collaborate on this group trip"
+                      >
+                        <Users size={15} />
+                        <span>Group Trip</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={() => setCalendarSyncOpen(true)}
+                        title="Add to Google Calendar or export .ics"
+                      >
+                        <Calendar size={15} />
+                        <span>Add to calendar</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={handlePrint}
+                        title="Print PDF of itinerary"
+                      >
+                        <Printer size={15} />
+                        <span>Print PDF</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={() => copyTripMarkdown(selectedTrip)}
+                        title="Copy itinerary as Markdown"
+                      >
+                        <Download size={15} />
+                        <span>Copy Markdown</span>
+                      </button>
+                    </div>
                     <button
                       type="button"
                       className="button button-dark"
@@ -2256,6 +2258,7 @@ export default function DashboardView({
                       className="delete-trip-btn"
                       onClick={(e) => handleDeleteTrip(selectedTrip.id, e)}
                       title="Delete this itinerary"
+                      aria-label="Delete this itinerary"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -2964,7 +2967,7 @@ export default function DashboardView({
                     <div className="field">
                       <label className="field-label">Countdown Notification Milestones</label>
                       <span className="field-hint" style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: 'var(--muted)' }}>
-                        TripMind will alert you as your departure date approaches:
+                        Planora will alert you as your departure date approaches:
                       </span>
                       <div className="reminder-checkboxes-row">
                         {[
@@ -2999,7 +3002,7 @@ export default function DashboardView({
                       </label>
                       <div className="settings-resend-note">
                         <small>
-                          ✳ <strong>Opt-in Note:</strong> In-app notifications are always active. Email reminders are strictly opt-in and include an instant unsubscribe link. Note: Emailing users other than the verified account address in Resend requires a verified sending domain. TripMind automatically falls back to in-app notifications if email dispatch is unavailable.
+                          ✳ <strong>Opt-in Note:</strong> In-app notifications are always active. Email reminders are strictly opt-in and include an instant unsubscribe link. Note: Emailing users other than the verified account address in Resend requires a verified sending domain. Planora automatically falls back to in-app notifications if email dispatch is unavailable.
                         </small>
                       </div>
                     </div>

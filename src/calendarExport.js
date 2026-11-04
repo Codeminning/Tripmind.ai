@@ -167,7 +167,7 @@ export function generateTripIcs(trip) {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//TripMind AI//Travel Concierge//EN',
+    'PRODID:-//Planora//Travel Concierge//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escapeIcs(trip.destination)} Itinerary`
@@ -282,7 +282,7 @@ export function createGoogleCalendarWebUrl(trip) {
     })
   }
 
-  details += `\nCurated with TripMind AI`
+  details += `\nCurated with Planora`
 
   const location = trip.destination || ''
   const datesParam = `${startDateStr}/${endDateStr}`
@@ -318,7 +318,7 @@ export function formatTripEventsForGoogleApi(trip) {
   events.push({
     idPrefix: `overview_${trip.id || 'trip'}`,
     summary: `✈️ Trip to ${trip.destination}`,
-    description: `${trip.summary || ''}\n\n${trip.travelTip ? `Local Tip: ${trip.travelTip}\n` : ''}Planned with TripMind AI`,
+    description: `${trip.summary || ''}\n\n${trip.travelTip ? `Local Tip: ${trip.travelTip}\n` : ''}Planned with Planora`,
     location: trip.destination,
     start: { date: startDateIso },
     end: { date: endDateIso },

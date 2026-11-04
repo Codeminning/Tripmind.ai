@@ -194,15 +194,15 @@ const hasAbout = trustPages.includes('export function AboutPage') && mainJsx.inc
 check('Dedicated About page explaining TripMind and who built it', hasAbout)
 
 const hasPrivacy = trustPages.includes('export function PrivacyPage') &&
-                   trustPages.includes('Google\'s Gemini') &&
+                   trustPages.includes('Google Gemini') &&
                    trustPages.includes('Vercel Web Analytics') &&
                    trustPages.includes('Neon') &&
                    trustPages.includes('localStorage') &&
-                   trustPages.includes('tripmindaisupport@gmail.com')
+                   trustPages.includes('planora.coresupport@gmail.com')
 check('Dedicated Privacy Policy covering Neon, Gemini AI, Analytics, localStorage, and deletion rights', hasPrivacy)
 
 const hasContact = trustPages.includes('export function ContactPage') &&
-                   trustPages.includes('mailto:tripmindaisupport@gmail.com') &&
+                   trustPages.includes('mailto:planora.coresupport@gmail.com') &&
                    trustPages.includes('DHYANESH VISAKAN')
 check('Dedicated Contact & About page with official support email and founder card', hasContact)
 

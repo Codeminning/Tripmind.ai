@@ -35,7 +35,7 @@ export function TripChatPanel({
     {
       id: 'welcome',
       role: 'assistant',
-      content: `Hello! I'm your TripMind concierge for ${trip?.destination || 'your trip'}. Ask me to modify your days (e.g. "swap Day 2 for indoor activities", "add a sunset viewpoint on Day 1"), or ask for local recommendations.`,
+      content: `Hello! I'm your Planora concierge for ${trip?.destination || 'your trip'}. Ask me to modify your days (e.g. "swap Day 2 for indoor activities", "add a sunset viewpoint on Day 1"), or ask for local recommendations.`,
       edits: [],
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
@@ -250,7 +250,7 @@ export function TripChatPanel({
 
               <div className="chat-bubble-content">
                 <div className="chat-meta">
-                  <span className="chat-author">{isUser ? 'You' : 'TripMind Concierge'}</span>
+                  <span className="chat-author">{isUser ? 'You' : 'Planora Concierge'}</span>
                   <span className="chat-time">{msg.timestamp}</span>
                 </div>
 
@@ -368,7 +368,7 @@ export function TripChatPanel({
                 <span className="dot" />
                 <span className="dot" />
                 <span className="dot" />
-                <span className="typing-text">TripMind AI is thinking...</span>
+                <span className="typing-text">Planora is thinking...</span>
               </div>
               <button
                 type="button"
@@ -406,7 +406,7 @@ export function TripChatPanel({
 
       {/* Screen Reader Live Status */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {loading ? 'TripMind AI is generating recommendations...' : ''}
+        {loading ? 'Planora is generating recommendations...' : ''}
       </div>
 
       {/* Chat Input Bar */}
@@ -419,7 +419,7 @@ export function TripChatPanel({
       >
         <div className="chat-input-wrapper">
           <label htmlFor="trip-chat-input" className="sr-only">
-            Ask TripMind to modify your trip or suggest local spots
+            Ask Planora to modify your trip or suggest local spots
           </label>
           <input
             id="trip-chat-input"
@@ -440,7 +440,7 @@ export function TripChatPanel({
           type="submit"
           className="button button-dark chat-send-btn"
           disabled={!input.trim() || loading}
-          aria-label="Send message to TripMind concierge"
+          aria-label="Send message to Planora concierge"
         >
           <Send size={16} />
           <span>Send</span>
