@@ -78,6 +78,7 @@ import { TodayCompanionView } from './TodayCompanionView'
 import { calculateTripCountdown } from '../tripReminders'
 import { GroupInviteModal } from './GroupInviteModal'
 import { JoinByLinkModal } from './JoinByLinkModal'
+import { DestinationAutocomplete } from './DestinationAutocomplete'
 import { CalendarSyncModal } from './CalendarSyncModal'
 import { ActivityCollaboration } from './ActivityCollaboration'
 import { ActivityProposalsList } from './ActivityProposalsList'
@@ -783,8 +784,8 @@ export default function DashboardView({
     if (customCurrencyCode && CURRENCIES[customCurrencyCode]) {
       return CURRENCIES[customCurrencyCode]
     }
-    return detectCurrencyForDestination(dashboardForm.destination)
-  }, [dashboardForm.destination, customCurrencyCode])
+    return detectCurrencyForDestination(dashboardForm.destination, dashboardForm.destinationMetadata)
+  }, [dashboardForm.destination, dashboardForm.destinationMetadata, customCurrencyCode])
 
   // Dynamic currency for currently viewed trip in trip sheet
   const selectedTripCurrency = useMemo(() => {
@@ -1644,23 +1645,24 @@ export default function DashboardView({
                 <form onSubmit={handleGenerateDashboardTrip} className="quick-planner-form">
                   <div className="field">
                     <label className="field-label" htmlFor="quick-planner-dest">Destination</label>
-                    <div className="input-wrap">
-                      <MapPin size={16} />
-                      <input
-                        id="quick-planner-dest"
-                        type="text"
-                        placeholder="e.g. Bergen, Norway or Kyoto"
-                        value={dashboardForm.destination}
-                        onChange={(e) =>
-                          setDashboardForm(p => ({ ...p, destination: e.target.value }))
-                        }
-                        required
-                      />
-                    </div>
+                    <DestinationAutocomplete
+                      id="quick-planner-dest"
+                      value={dashboardForm.destination}
+                      onChange={(val) => setDashboardForm(p => ({ ...p, destination: val, destinationMetadata: null }))}
+                      onSelect={(item) => setDashboardForm(p => ({ ...p, destination: item.label, destinationMetadata: item }))}
+                      placeholder="e.g. Bergen, Norway or Kyoto"
+                      required
+                    />
                     {dashboardForm.destination.trim() && plannerCurrency && (
                       <div className="currency-detector-pill" style={{ marginTop: '8px' }}>
                         <Globe size={13} />
-                        <span>Currency: <strong>{plannerCurrency.flag} {plannerCurrency.code} ({plannerCurrency.symbol})</strong></span>
+                        {plannerCurrency.isUnknown ? (
+                          <span className="currency-unconfirmed-label">
+                            Currency: <em>Unconfirmed</em> · Defaults to <strong>USD ($)</strong>
+                          </span>
+                        ) : (
+                          <span>Currency: <strong>{plannerCurrency.flag} {plannerCurrency.code} ({plannerCurrency.symbol})</strong></span>
+                        )}
                         {(() => {
                           const rate = plannerCurrency.rateFromUsd ?? plannerCurrency.rateToUsd ?? 1;
                           return (
@@ -1669,6 +1671,18 @@ export default function DashboardView({
                             </span>
                           );
                         })()}
+                        <select
+                          className="currency-select-inline"
+                          aria-label="Select currency override"
+                          value={customCurrencyCode || plannerCurrency.code}
+                          onChange={(e) => setCustomCurrencyCode(e.target.value)}
+                        >
+                          {Object.keys(CURRENCIES).map(code => (
+                            <option key={code} value={code}>
+                              {CURRENCIES[code].flag} {code} ({CURRENCIES[code].symbol})
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     )}
                   </div>
@@ -1853,25 +1867,26 @@ export default function DashboardView({
 
                 <div className="field">
                   <label className="field-label" htmlFor="planner-studio-dest">Where do you want to explore?</label>
-                  <div className="input-wrap">
-                    <MapPin size={18} />
-                    <input
-                      id="planner-studio-dest"
-                      type="text"
-                      placeholder="e.g. Kyoto, Japan or Florence, Italy"
-                      value={dashboardForm.destination}
-                      onChange={(e) =>
-                        setDashboardForm(p => ({ ...p, destination: e.target.value }))
-                      }
-                      required
-                    />
-                  </div>
+                  <DestinationAutocomplete
+                    id="planner-studio-dest"
+                    value={dashboardForm.destination}
+                    onChange={(val) => setDashboardForm(p => ({ ...p, destination: val, destinationMetadata: null }))}
+                    onSelect={(item) => setDashboardForm(p => ({ ...p, destination: item.label, destinationMetadata: item }))}
+                    placeholder="e.g. Kyoto, Japan or Florence, Italy"
+                    required
+                  />
                   {dashboardForm.destination.trim() && plannerCurrency && (
                     <div className="currency-detector-pill" style={{ marginTop: '10px' }}>
                       <Globe size={14} />
-                      <span>
-                        Local Currency: <strong>{plannerCurrency.flag} {plannerCurrency.code} ({plannerCurrency.symbol})</strong> · {plannerCurrency.name}
-                      </span>
+                      {plannerCurrency.isUnknown ? (
+                        <span>
+                          Local Currency: <span className="currency-unconfirmed-tag">Unconfirmed</span> · Defaulting to <strong>{plannerCurrency.code} ({plannerCurrency.symbol})</strong>
+                        </span>
+                      ) : (
+                        <span>
+                          Local Currency: <strong>{plannerCurrency.flag} {plannerCurrency.code} ({plannerCurrency.symbol})</strong> · {plannerCurrency.name}
+                        </span>
+                      )}
                       {(() => {
                         const rate = plannerCurrency.rateFromUsd ?? plannerCurrency.rateToUsd ?? 1;
                         return (
@@ -1880,6 +1895,19 @@ export default function DashboardView({
                           </span>
                         );
                       })()}
+                      <select
+                        className="currency-select-inline"
+                        aria-label="Change currency override"
+                        title="Change local currency"
+                        value={customCurrencyCode || plannerCurrency.code}
+                        onChange={(e) => setCustomCurrencyCode(e.target.value)}
+                      >
+                        {Object.keys(CURRENCIES).map(code => (
+                          <option key={code} value={code}>
+                            {CURRENCIES[code].flag} {code} ({CURRENCIES[code].symbol})
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   )}
                 </div>

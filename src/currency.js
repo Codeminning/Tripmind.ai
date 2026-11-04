@@ -114,31 +114,210 @@ export async function fetchExchangeRates() {
   return ratesMetadata
 }
 
-export function detectCurrencyForDestination(destination) {
-  if (!destination || typeof destination !== 'string') return CURRENCIES.USD
+export const COUNTRY_CODE_TO_CURRENCY = {
+  IN: 'INR',
+  US: 'USD',
+  JP: 'JPY',
+  GB: 'GBP',
+  UK: 'GBP',
+  FR: 'EUR',
+  DE: 'EUR',
+  IT: 'EUR',
+  ES: 'EUR',
+  PT: 'EUR',
+  NL: 'EUR',
+  GR: 'EUR',
+  AT: 'EUR',
+  IE: 'EUR',
+  BE: 'EUR',
+  FI: 'EUR',
+  LU: 'EUR',
+  CH: 'CHF',
+  AU: 'AUD',
+  CA: 'CAD',
+  MX: 'MXN',
+  ID: 'IDR',
+  TH: 'THB',
+  SG: 'SGD',
+  AE: 'AED',
+  KR: 'KRW',
+  IS: 'ISK',
+  BR: 'BRL',
+  NZ: 'AUD'
+}
+
+export function detectCurrencyForDestination(destination, metadata = null) {
+  // 1. Direct metadata match (from autocomplete suggestion or geocoding)
+  if (metadata && metadata.countryCode) {
+    const code = COUNTRY_CODE_TO_CURRENCY[String(metadata.countryCode).toUpperCase()]
+    if (code && CURRENCIES[code]) {
+      return { ...CURRENCIES[code], isDetected: true }
+    }
+  }
+
+  if (!destination || typeof destination !== 'string') {
+    return { ...CURRENCIES.USD, isUnknown: true }
+  }
+
   const d = destination.toLowerCase().trim()
+  if (!d) return { ...CURRENCIES.USD, isUnknown: true }
 
-  if (d.includes('japan') || d.includes('kyoto') || d.includes('tokyo') || d.includes('osaka') || d.includes('hokkaido')) return CURRENCIES.JPY
-  if (d.includes('italy') || d.includes('amalfi') || d.includes('rome') || d.includes('florence') || d.includes('venice') ||
-      d.includes('france') || d.includes('paris') || d.includes('spain') || d.includes('barcelona') || d.includes('madrid') ||
-      d.includes('portugal') || d.includes('lisbon') || d.includes('porto') || d.includes('germany') || d.includes('berlin') ||
-      d.includes('netherlands') || d.includes('amsterdam') || d.includes('greece') || d.includes('santorini') || d.includes('athens') ||
-      d.includes('austria') || d.includes('vienna') || d.includes('ireland') || d.includes('dublin')) return CURRENCIES.EUR
-  if (d.includes('uk') || d.includes('united kingdom') || d.includes('london') || d.includes('england') || d.includes('scotland') || d.includes('edinburgh')) return CURRENCIES.GBP
-  if (d.includes('india') || d.includes('delhi') || d.includes('mumbai') || d.includes('goa') || d.includes('jaipur') || d.includes('kerala') || d.includes('bengaluru') || d.includes('hyderabad')) return CURRENCIES.INR
-  if (d.includes('mexico') || d.includes('oaxaca') || d.includes('cancun') || d.includes('cdmx')) return CURRENCIES.MXN
-  if (d.includes('indonesia') || d.includes('bali') || d.includes('ubud') || d.includes('jakarta')) return CURRENCIES.IDR
-  if (d.includes('switzerland') || d.includes('swiss') || d.includes('zurich') || d.includes('geneva') || d.includes('interlaken') || d.includes('zermatt')) return CURRENCIES.CHF
-  if (d.includes('australia') || d.includes('sydney') || d.includes('melbourne') || d.includes('brisbane')) return CURRENCIES.AUD
-  if (d.includes('canada') || d.includes('toronto') || d.includes('vancouver') || d.includes('montreal')) return CURRENCIES.CAD
-  if (d.includes('thailand') || d.includes('bangkok') || d.includes('phuket') || d.includes('chiang mai')) return CURRENCIES.THB
-  if (d.includes('singapore')) return CURRENCIES.SGD
-  if (d.includes('uae') || d.includes('dubai') || d.includes('abu dhabi')) return CURRENCIES.AED
-  if (d.includes('korea') || d.includes('seoul') || d.includes('busan')) return CURRENCIES.KRW
-  if (d.includes('iceland') || d.includes('reykjavik')) return CURRENCIES.ISK
-  if (d.includes('brazil') || d.includes('rio') || d.includes('sao paulo')) return CURRENCIES.BRL
+  // Check for country suffixes or components like "potheri,india" or "madurai,tamilnadu"
+  const tokens = d.split(/[,\s/]+/).map(t => t.trim()).filter(Boolean)
 
-  return CURRENCIES.USD
+  // 2. India matching (exhaustive cities, states, keywords)
+  const isIndia = (
+    d.includes('india') || d.includes('bharat') ||
+    d.includes('tamil nadu') || d.includes('tamilnadu') || d.includes('madurai') || d.includes('chennai') ||
+    d.includes('potheri') || d.includes('coimbatore') || d.includes('karnataka') || d.includes('bengaluru') ||
+    d.includes('bangalore') || d.includes('mysore') || d.includes('mysuru') || d.includes('kerala') ||
+    d.includes('kochi') || d.includes('cochin') || d.includes('munnar') || d.includes('alleppey') ||
+    d.includes('alappuzha') || d.includes('thiruvananthapuram') || d.includes('trivandrum') ||
+    d.includes('delhi') || d.includes('new delhi') || d.includes('mumbai') || d.includes('bombay') ||
+    d.includes('maharashtra') || d.includes('pune') || d.includes('goa') || d.includes('panaji') ||
+    d.includes('rajasthan') || d.includes('jaipur') || d.includes('udaipur') || d.includes('jodhpur') ||
+    d.includes('jaisalmer') || d.includes('agra') || d.includes('varanasi') || d.includes('kashi') ||
+    d.includes('uttar pradesh') || d.includes('lucknow') || d.includes('hyderabad') || d.includes('telangana') ||
+    d.includes('andhra') || d.includes('kolkata') || d.includes('calcutta') || d.includes('west bengal') ||
+    d.includes('gujarat') || d.includes('ahmedabad') || d.includes('punjab') || d.includes('amritsar') ||
+    d.includes('himachal') || d.includes('manali') || d.includes('shimla') || d.includes('rishikesh') ||
+    d.includes('haridwar') || d.includes('ladakh') || d.includes('leh') || d.includes('kashmir') ||
+    d.includes('srinagar') || d.includes('pondicherry') || d.includes('puducherry') || d.includes('hampi') ||
+    d.includes('gokarna') || d.includes('ooty') || d.includes('kodaikanal') || d.includes('tirupati') ||
+    d.includes('salem') || d.includes('trichy') || d.includes('tiruchirappalli') || d.includes('tirunelveli') ||
+    d.includes('tambaram') || d.includes('chengalpattu') || d.includes('vellore') || d.includes('kancheepuram') ||
+    tokens.includes('in')
+  )
+  if (isIndia) return { ...CURRENCIES.INR, isDetected: true }
+
+  // 3. Japan
+  if (
+    d.includes('japan') || d.includes('kyoto') || d.includes('tokyo') || d.includes('osaka') ||
+    d.includes('hokkaido') || d.includes('sapporo') || d.includes('hiroshima') || d.includes('nara') ||
+    d.includes('fukuoka') || tokens.includes('jp')
+  ) {
+    return { ...CURRENCIES.JPY, isDetected: true }
+  }
+
+  // 4. Eurozone
+  if (
+    d.includes('italy') || d.includes('amalfi') || d.includes('rome') || d.includes('florence') ||
+    d.includes('venice') || d.includes('milan') || d.includes('naples') || d.includes('sicily') ||
+    d.includes('france') || d.includes('paris') || d.includes('nice') || d.includes('lyon') ||
+    d.includes('marseille') || d.includes('bordeaux') ||
+    d.includes('spain') || d.includes('barcelona') || d.includes('madrid') || d.includes('seville') ||
+    d.includes('valencia') || d.includes('mallorca') || d.includes('ibiza') ||
+    d.includes('portugal') || d.includes('lisbon') || d.includes('porto') || d.includes('algarve') ||
+    d.includes('germany') || d.includes('berlin') || d.includes('munich') || d.includes('frankfurt') ||
+    d.includes('hamburg') || d.includes('cologne') ||
+    d.includes('netherlands') || d.includes('amsterdam') || d.includes('rotterdam') ||
+    d.includes('greece') || d.includes('santorini') || d.includes('athens') || d.includes('mykonos') ||
+    d.includes('crete') || d.includes('rhodes') ||
+    d.includes('austria') || d.includes('vienna') || d.includes('salzburg') || d.includes('innsbruck') ||
+    d.includes('ireland') || d.includes('dublin') || d.includes('galway') ||
+    d.includes('belgium') || d.includes('brussels') || d.includes('bruges') || d.includes('ghent') ||
+    d.includes('finland') || d.includes('helsinki')
+  ) {
+    return { ...CURRENCIES.EUR, isDetected: true }
+  }
+
+  // 5. United Kingdom
+  if (
+    d.includes('uk') || d.includes('united kingdom') || d.includes('london') || d.includes('england') ||
+    d.includes('scotland') || d.includes('edinburgh') || d.includes('glasgow') || d.includes('manchester') ||
+    d.includes('liverpool') || d.includes('belfast') || d.includes('wales') || d.includes('cardiff') ||
+    tokens.includes('gb')
+  ) {
+    return { ...CURRENCIES.GBP, isDetected: true }
+  }
+
+  // 6. Mexico
+  if (
+    d.includes('mexico') || d.includes('oaxaca') || d.includes('cancun') || d.includes('cdmx') ||
+    d.includes('guadalajara') || d.includes('tulum') || d.includes('playa del carmen') ||
+    d.includes('puerto vallarta') || tokens.includes('mx')
+  ) {
+    return { ...CURRENCIES.MXN, isDetected: true }
+  }
+
+  // 7. Indonesia
+  if (
+    d.includes('indonesia') || d.includes('bali') || d.includes('ubud') || d.includes('jakarta') ||
+    d.includes('lombok') || d.includes('seminyak') || d.includes('canggu') || d.includes('komodo') ||
+    tokens.includes('id')
+  ) {
+    return { ...CURRENCIES.IDR, isDetected: true }
+  }
+
+  // 8. Switzerland
+  if (
+    d.includes('switzerland') || d.includes('swiss') || d.includes('zurich') || d.includes('geneva') ||
+    d.includes('interlaken') || d.includes('zermatt') || d.includes('lucerne') || d.includes('basel') ||
+    tokens.includes('ch')
+  ) {
+    return { ...CURRENCIES.CHF, isDetected: true }
+  }
+
+  // 9. Australia
+  if (
+    d.includes('australia') || d.includes('sydney') || d.includes('melbourne') || d.includes('brisbane') ||
+    d.includes('perth') || d.includes('gold coast') || d.includes('cairns') || tokens.includes('au')
+  ) {
+    return { ...CURRENCIES.AUD, isDetected: true }
+  }
+
+  // 10. Canada
+  if (
+    d.includes('canada') || d.includes('toronto') || d.includes('vancouver') || d.includes('montreal') ||
+    d.includes('banff') || d.includes('quebec') || d.includes('calgary') || d.includes('ottawa') ||
+    tokens.includes('ca')
+  ) {
+    return { ...CURRENCIES.CAD, isDetected: true }
+  }
+
+  // 11. Thailand
+  if (
+    d.includes('thailand') || d.includes('bangkok') || d.includes('phuket') || d.includes('chiang mai') ||
+    d.includes('koh samui') || d.includes('krabi') || d.includes('pattaya') || tokens.includes('th')
+  ) {
+    return { ...CURRENCIES.THB, isDetected: true }
+  }
+
+  // 12. Singapore
+  if (d.includes('singapore') || tokens.includes('sg')) return { ...CURRENCIES.SGD, isDetected: true }
+
+  // 13. UAE
+  if (d.includes('uae') || d.includes('dubai') || d.includes('abu dhabi') || tokens.includes('ae')) {
+    return { ...CURRENCIES.AED, isDetected: true }
+  }
+
+  // 14. South Korea
+  if (d.includes('korea') || d.includes('seoul') || d.includes('busan') || d.includes('jeju') || tokens.includes('kr')) {
+    return { ...CURRENCIES.KRW, isDetected: true }
+  }
+
+  // 15. Iceland
+  if (d.includes('iceland') || d.includes('reykjavik') || tokens.includes('is')) {
+    return { ...CURRENCIES.ISK, isDetected: true }
+  }
+
+  // 16. Brazil
+  if (d.includes('brazil') || d.includes('rio') || d.includes('sao paulo') || d.includes('salvador') || tokens.includes('br')) {
+    return { ...CURRENCIES.BRL, isDetected: true }
+  }
+
+  // 17. USA
+  if (
+    d.includes('usa') || d.includes('united states') || d.includes('new york') || d.includes('california') ||
+    d.includes('los angeles') || d.includes('san francisco') || d.includes('miami') || d.includes('hawaii') ||
+    d.includes('seattle') || d.includes('chicago') || d.includes('las vegas') || d.includes('austin') ||
+    d.includes('boston') || tokens.includes('us')
+  ) {
+    return { ...CURRENCIES.USD, isDetected: true }
+  }
+
+  // Not recognized: return USD with isUnknown: true
+  return { ...CURRENCIES.USD, isUnknown: true }
 }
 
 const CURRENCY_LOCALES = {

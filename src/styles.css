@@ -12989,6 +12989,235 @@ button.brand:hover,
   color: #34d399;
 }
 
+/* ============================================================
+   Destination Autocomplete & Group Invite Enhancements
+   ============================================================ */
+.destination-autocomplete-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.destination-autocomplete-wrap .input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.destination-autocomplete-input {
+  width: 100%;
+  padding-right: 36px;
+}
+
+.destination-spinner {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted, #67726d);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.destination-suggestions-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--line, #e6e3da);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.destination-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.destination-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.destination-suggestion-item:hover,
+.destination-suggestion-item.highlighted {
+  background: rgba(31, 72, 55, 0.08);
+}
+
+.suggestion-icon {
+  color: var(--brand-sage, #1f4837);
+  flex-shrink: 0;
+}
+
+.suggestion-text-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.suggestion-primary {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink, #1f2723);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-secondary {
+  font-size: 11.5px;
+  color: var(--muted, #67726d);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--brand-sage, #1f4837);
+  background: rgba(31, 72, 55, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.destination-no-results {
+  padding: 14px 16px;
+  font-size: 12.5px;
+  color: var(--muted, #67726d);
+  text-align: left;
+  line-height: 1.4;
+}
+
+.invite-error-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  color: #b91c1c;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  width: 100%;
+}
+
+.invite-error-row .retry-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid currentColor;
+  color: inherit;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.invite-restricted-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px dashed var(--line, #e6e3da);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  color: var(--muted, #67726d);
+  margin-top: 8px;
+}
+
+.invite-restricted-box strong {
+  color: var(--ink, #1f2723);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.invite-restricted-box p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.currency-unconfirmed-tag {
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Dark theme overrides */
+[data-theme="dark"] .destination-suggestions-list {
+  background: #19251e;
+  border-color: #25362a;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .destination-suggestion-item {
+  border-bottom-color: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .destination-suggestion-item:hover,
+[data-theme="dark"] .destination-suggestion-item.highlighted {
+  background: rgba(52, 211, 153, 0.12);
+}
+
+[data-theme="dark"] .suggestion-icon {
+  color: #34d399;
+}
+
+[data-theme="dark"] .suggestion-primary {
+  color: #f2f7f4;
+}
+
+[data-theme="dark"] .suggestion-secondary {
+  color: #a4b3aa;
+}
+
+[data-theme="dark"] .suggestion-badge {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+}
+
+[data-theme="dark"] .destination-no-results {
+  color: #a4b3aa;
+}
+
+[data-theme="dark"] .invite-restricted-box {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: #25362a;
+  color: #a4b3aa;
+}
+
+[data-theme="dark"] .invite-restricted-box strong {
+  color: #f2f7f4;
+}
+
+[data-theme="dark"] .currency-unconfirmed-tag {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+
 
 
 

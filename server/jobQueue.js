@@ -267,6 +267,8 @@ class JobQueue {
    */
   async updateProgress(id, progress, stage) {
     const job = this.memoryJobs.get(id);
+    if (job && (job.status === 'completed' || job.status === 'failed')) return;
+
     const nowIso = new Date().toISOString();
 
     if (job) {
@@ -282,7 +284,7 @@ class JobQueue {
           SET progress = ${job ? job.progress : progress},
               stage = ${stage || null},
               updated_at = NOW()
-          WHERE id = ${id}
+          WHERE id = ${id} AND status NOT IN ('completed', 'failed')
         `;
       } catch (e) {}
     }

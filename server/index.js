@@ -929,6 +929,119 @@ router.get('/exchange-rates', async (_req, res) => {
   });
 });
 
+// ---------------- Places Autocomplete Suggest Endpoint ----------------
+const placesCache = new Map();
+const PLACES_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function formatPlaceLabel(p) {
+  const parts = [];
+  if (p.name) parts.push(p.name);
+  if (p.district && p.district !== p.name && p.district !== p.city) parts.push(p.district);
+  if (p.city && p.city !== p.name) parts.push(p.city);
+  if (p.state && p.state !== p.name && p.state !== p.city) parts.push(p.state);
+  if (p.country && p.country !== p.state) parts.push(p.country);
+  return parts.join(', ');
+}
+
+router.get('/places/suggest', async (req, res) => {
+  const query = (req.query.q || '').trim();
+  if (!query || query.length < 2) {
+    return res.json([]);
+  }
+
+  const cacheKey = query.toLowerCase();
+  const cached = placesCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < PLACES_CACHE_TTL_MS) {
+    return res.json(cached.results);
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+
+    // Primary: Photon OpenStreetMap geocoding with exceptional neighborhood & city coverage
+    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6`;
+    const response = await fetch(photonUrl, {
+      headers: {
+        'User-Agent': 'TripMindAI/1.0 (https://tripmind.app)',
+        'Accept': 'application/json'
+      },
+      signal: controller.signal
+    }).finally(() => clearTimeout(timeout));
+
+    if (response.ok) {
+      const data = await response.json();
+      const features = Array.isArray(data.features) ? data.features : [];
+
+      const seen = new Set();
+      const results = [];
+
+      for (const feat of features) {
+        const props = feat.properties || {};
+        const name = props.name || props.city || '';
+        if (!name) continue;
+
+        const label = formatPlaceLabel(props);
+        const lowerLabel = label.toLowerCase();
+        if (seen.has(lowerLabel)) continue;
+        seen.add(lowerLabel);
+
+        results.push({
+          id: `osm_${props.osm_type || 'N'}_${props.osm_id || Math.random()}`,
+          name: props.name || '',
+          district: props.district || '',
+          city: props.city || '',
+          state: props.state || '',
+          country: props.country || '',
+          countryCode: (props.countrycode || '').toUpperCase(),
+          label,
+          type: props.type || props.osm_value || 'place'
+        });
+
+        if (results.length >= 6) break;
+      }
+
+      placesCache.set(cacheKey, { timestamp: Date.now(), results });
+      if (placesCache.size > 500) {
+        const oldestKey = placesCache.keys().next().value;
+        placesCache.delete(oldestKey);
+      }
+      return res.json(results);
+    }
+  } catch (err) {
+    // If Photon fails or times out, try Open-Meteo geocoding as fallback
+    try {
+      const openMeteoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=en&format=json`;
+      const fallbackResp = await fetch(openMeteoUrl, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(3000)
+      });
+      if (fallbackResp.ok) {
+        const data = await fallbackResp.json();
+        const results = (data.results || []).map(r => {
+          const parts = [r.name];
+          if (r.admin1 && r.admin1 !== r.name) parts.push(r.admin1);
+          if (r.country) parts.push(r.country);
+          return {
+            id: `om_${r.id}`,
+            name: r.name,
+            city: r.name,
+            state: r.admin1 || '',
+            country: r.country || '',
+            countryCode: (r.country_code || '').toUpperCase(),
+            label: parts.join(', '),
+            type: 'city'
+          };
+        });
+        placesCache.set(cacheKey, { timestamp: Date.now(), results });
+        return res.json(results);
+      }
+    } catch (_) {}
+  }
+
+  return res.json([]);
+});
+
 // ---------------- Share Trip Endpoints ----------------
 const SHARE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const SHARE_RATE_LIMIT_MAX = 20;

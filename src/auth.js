@@ -246,6 +246,8 @@ export function saveUserTrip(userId, trip) {
     const existing = getUserTrips(userId)
     const tripToSave = {
       ...trip,
+      userId: trip.userId || (userId !== 'guest' ? userId : null),
+      userMemberRole: trip.userMemberRole || 'owner',
       id: trip.id || `trip_${Date.now()}`,
       savedAt: trip.savedAt || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       status: trip.status || 'Upcoming'

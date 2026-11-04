@@ -31,11 +31,37 @@ export function GroupInviteModal({
   const [loading, setLoading] = useState(true)
   const [inviteToken, setInviteToken] = useState(trip?.inviteToken || null)
   const [copied, setCopied] = useState(false)
+  const [shared, setShared] = useState(false)
   const [maxMembers, setMaxMembers] = useState(trip?.maxMembers || 10)
   const [confirmThreshold, setConfirmThreshold] = useState(trip?.confirmThreshold || 'owner')
   const [generating, setGenerating] = useState(false)
+  const [revoking, setRevoking] = useState(false)
+  const [inviteError, setInviteError] = useState(null)
 
-  const isOwner = trip?.userMemberRole === 'owner' || trip?.userId === currentUser?.id || trip?.user_id === currentUser?.id
+  // Sync invite token if trip updates
+  useEffect(() => {
+    if (trip?.inviteToken && !inviteToken) {
+      setInviteToken(trip.inviteToken)
+    }
+  }, [trip?.inviteToken])
+
+  // Determine user's membership and owner rights
+  const currentMember = members.find(m =>
+    (currentUser?.id && (m.id === currentUser.id || m.user_id === currentUser.id)) ||
+    (currentUser?.email && m.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+    (currentUser?.name && m.name && m.name.toLowerCase() === currentUser.name.toLowerCase())
+  )
+
+  const isExplicitNonOwner = currentMember && currentMember.role && currentMember.role !== 'owner'
+
+  const isOwner = !isExplicitNonOwner && (
+    trip?.userMemberRole === 'owner' ||
+    (currentUser?.id && (trip?.userId === currentUser?.id || trip?.user_id === currentUser?.id)) ||
+    currentMember?.role === 'owner' ||
+    (!trip?.userMemberRole && Boolean(currentUser?.id)) ||
+    (!trip?.userId && !trip?.user_id && Boolean(currentUser?.id)) ||
+    (members.length <= 1 && Boolean(currentUser?.id))
+  )
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -58,7 +84,19 @@ export function GroupInviteModal({
 
   const handleGenerateLink = async () => {
     setGenerating(true)
+    setInviteError(null)
     try {
+      // If trip has not been persisted to server yet, ensure it is saved
+      if (currentUser?.id && currentUser.id !== 'guest') {
+        try {
+          await fetch('/api/trips', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id, trip })
+          })
+        } catch (_) {}
+      }
+
       const data = await generateInviteLink({
         tripId: trip.id,
         maxMembers,
@@ -68,19 +106,30 @@ export function GroupInviteModal({
       setInviteToken(data.inviteToken)
       showToast?.('Invite link generated! 🔗')
     } catch (err) {
-      showToast?.(err.message || 'Could not generate invite link.')
+      const msg = err.message || 'Could not generate invite link.'
+      setInviteError(msg)
+      showToast?.(msg)
     } finally {
       setGenerating(false)
     }
   }
 
   const handleRevokeLink = async () => {
+    if (!confirm('Revoke this invite link? Existing travelers remain in the trip, but this link will stop accepting new joins.')) {
+      return
+    }
+    setRevoking(true)
+    setInviteError(null)
     try {
       await revokeInviteLink({ tripId: trip.id, token: currentUser?.token })
       setInviteToken(null)
       showToast?.('Invite link revoked.')
     } catch (err) {
-      showToast?.('Could not revoke invite link.')
+      const msg = err.message || 'Could not revoke invite link.'
+      setInviteError(msg)
+      showToast?.(msg)
+    } finally {
+      setRevoking(false)
     }
   }
 
@@ -91,7 +140,33 @@ export function GroupInviteModal({
       setCopied(true)
       setTimeout(() => setCopied(false), 2400)
       showToast?.('Invite link copied to clipboard! 📋')
+    }).catch(() => {
+      showToast?.('Failed to copy. Please select and copy manually.')
     })
+  }
+
+  const handleShare = async () => {
+    if (!inviteToken) return
+    const fullUrl = `${window.location.origin}/join/${inviteToken}`
+    const destName = trip?.destination || 'our destination'
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: `TripMind AI: Join our trip to ${destName}`,
+          text: `Join my group trip to ${destName} on TripMind AI!`,
+          url: fullUrl
+        })
+        setShared(true)
+        setTimeout(() => setShared(false), 2400)
+        showToast?.('Trip invite shared! 🌟')
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          handleCopy()
+        }
+      }
+    } else {
+      handleCopy()
+    }
   }
 
   const handleRemoveMember = async (memberUserId) => {
@@ -147,36 +222,68 @@ export function GroupInviteModal({
             </p>
 
             {inviteToken ? (
-              <div className="invite-url-box">
-                <input
-                  type="text"
-                  readOnly
-                  value={inviteUrl}
-                  aria-label="Group invite URL"
-                  className="invite-url-input"
-                />
-                <button
-                  type="button"
-                  className="button button-dark btn-sm"
-                  onClick={handleCopy}
-                  title="Copy invite URL"
-                >
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
-                  <span>{copied ? 'Copied' : 'Copy'}</span>
-                </button>
-                {isOwner && (
+              <div className="invite-url-container">
+                <div className="invite-url-box">
+                  <input
+                    id="group-invite-url"
+                    type="text"
+                    readOnly
+                    value={inviteUrl}
+                    aria-label="Group invite URL"
+                    className="invite-url-input"
+                    onClick={(e) => e.target.select()}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <button
+                    type="button"
+                    className="button button-dark btn-sm"
+                    onClick={handleCopy}
+                    title="Copy invite URL"
+                    aria-label={copied ? "Invite link copied to clipboard" : "Copy invite link to clipboard"}
+                  >
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                    <span>{copied ? 'Copied!' : 'Copy link'}</span>
+                  </button>
                   <button
                     type="button"
                     className="button button-secondary btn-sm"
-                    onClick={handleRevokeLink}
-                    title="Revoke and disable this invite link"
+                    onClick={handleShare}
+                    title="Share invite link"
+                    aria-label="Share invite link"
                   >
-                    <span>Revoke Link</span>
+                    <Share2 size={14} />
+                    <span>{shared ? 'Shared!' : 'Share'}</span>
                   </button>
+                  {isOwner && (
+                    <button
+                      type="button"
+                      className="button button-secondary btn-sm"
+                      onClick={handleRevokeLink}
+                      disabled={revoking}
+                      title="Revoke and disable this invite link"
+                      aria-label="Revoke invite link"
+                    >
+                      <span>{revoking ? 'Revoking...' : 'Revoke link'}</span>
+                    </button>
+                  )}
+                </div>
+                {inviteError && (
+                  <div className="invite-error-row" role="alert" style={{ marginTop: '8px' }}>
+                    <AlertCircle size={14} />
+                    <span>{inviteError}</span>
+                  </div>
                 )}
               </div>
-            ) : (
-              isOwner && (
+            ) : !currentUser ? (
+              <div className="invite-restricted-box" role="note">
+                <AlertCircle size={15} />
+                <div>
+                  <strong>Sign in required</strong>
+                  <p>Please sign in to generate and manage invite links for group collaboration.</p>
+                </div>
+              </div>
+            ) : isOwner ? (
+              <div className="invite-generator-container">
                 <div className="invite-generator-row">
                   <div className="generator-field">
                     <label htmlFor="invite-max-members">Max Members:</label>
@@ -207,12 +314,35 @@ export function GroupInviteModal({
                     className="button button-dark btn-sm"
                     onClick={handleGenerateLink}
                     disabled={generating}
+                    aria-busy={generating}
+                    style={{ minWidth: '150px' }}
                   >
                     <Link2 size={14} />
-                    <span>{generating ? 'Generating...' : 'Create Invite Link'}</span>
+                    <span>{generating ? 'Generating link...' : 'Generate invite link'}</span>
                   </button>
                 </div>
-              )
+                {inviteError && (
+                  <div className="invite-error-row" role="alert" style={{ marginTop: '10px' }}>
+                    <AlertCircle size={14} />
+                    <span>{inviteError}</span>
+                    <button
+                      type="button"
+                      className="retry-btn"
+                      onClick={handleGenerateLink}
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="invite-restricted-box" role="note">
+                <Shield size={15} />
+                <div>
+                  <strong>Organizer-only control</strong>
+                  <p>Only the trip organizer can create or revoke group invite links. Ask the organizer to share the link with you.</p>
+                </div>
+              </div>
             )}
           </div>
 
