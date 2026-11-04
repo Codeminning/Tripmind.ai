@@ -500,96 +500,19 @@ export async function registerWithEmail({ name, email, password, travelVibe }) {
   }
 }
 
-export function parseJwt(token) {
-  try {
-    const base64Url = token.split('.')[1]
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    )
-    return JSON.parse(jsonPayload)
-  } catch (e) {
-    return null
-  }
-}
-
 export async function authenticateWithGoogleCredential(credentialToken) {
-  const payload = parseJwt(credentialToken)
-  if (!payload || !payload.email) {
-    throw new Error('Could not verify Google credential.')
-  }
-  return authenticateWithGoogle({
-    name: payload.name || payload.given_name || payload.email.split('@')[0],
-    email: payload.email,
-    avatar: payload.picture,
-    initials: (payload.name || payload.email).slice(0, 2).toUpperCase()
+  const res = await fetch('/api/auth/google', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential: credentialToken })
   })
-}
-
-export async function authenticateWithGoogle(customProfile = null) {
-  const profile = customProfile || {
-    name: 'Dhyanesh Visakan',
-    email: 'tripmindaisupport@gmail.com',
-    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Dhyanesh%20Visakan&backgroundColor=2b5143&textColor=ffffff',
-    initials: 'DV'
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data.error || 'Google sign-in failed.')
   }
-
-  try {
-    const res = await fetch('/api/auth/google', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(profile)
-    })
-    const data = await res.json()
-    if (res.ok && data.user) {
-      setActiveSession(data.user)
-      syncTripsFromNeon(data.user.id)
-      return data.user
-    }
-  } catch (e) {
-    console.warn('Neon Google auth failed, falling back locally:', e)
-  }
-
-  // Local fallback
-  const users = getStoredUsers()
-  let user = users.find(u => u.email.toLowerCase() === profile.email.toLowerCase())
-
-  if (!user) {
-    user = {
-      id: `user_google_${Date.now()}`,
-      name: profile.name,
-      email: profile.email,
-      avatar: profile.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile.name)}&backgroundColor=2b5143&textColor=ffffff`,
-      initials: profile.initials || profile.name.slice(0, 2).toUpperCase(),
-      travelVibe: 'Food & Culinary Explorer',
-      defaultBudget: 'Mid-range',
-      defaultTravelers: 2,
-      favoriteInterests: ['Food & cafés', 'Culture & heritage', 'Slow travel'],
-      authProvider: 'google',
-      createdAt: new Date().toISOString().split('T')[0]
-    }
-    saveStoredUsers([...users, user])
-  }
-
-  const session = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    avatar: user.avatar,
-    initials: user.initials,
-    travelVibe: user.travelVibe || 'Food & Culinary Explorer',
-    defaultBudget: user.defaultBudget || 'Mid-range',
-    defaultTravelers: user.defaultTravelers || 2,
-    favoriteInterests: user.favoriteInterests || ['Food & cafés'],
-    authProvider: 'google',
-    loggedInAt: new Date().toISOString()
-  }
-
-  setActiveSession(session)
-  return session
+  setActiveSession(data.user)
+  syncTripsFromNeon(data.user.id)
+  return data.user
 }
 
 export function logOutUser() {

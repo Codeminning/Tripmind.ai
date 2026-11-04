@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 import { Resend } from 'resend';
 import { sql, initDb } from './db.js';
 import { jobQueue } from './jobQueue.js';
+import { OAuth2Client } from 'google-auth-library';
 import {
   isGoogleCalendarConfigured,
   generateGoogleAuthUrl,
@@ -23,6 +24,7 @@ import {
 const app = express();
 const port = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'tripmind_secret_jwt_key_2026_zen';
+const googleClient = process.env.GOOGLE_CLIENT_ID ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID) : null;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, '..', 'dist');
 
@@ -342,33 +344,42 @@ router.post('/auth/login', async (req, res) => {
 
 router.post('/auth/google', async (req, res) => {
   try {
-    const { name, email, avatar, initials } = req.body || {};
-    const cleanEmail = (email || '').trim().toLowerCase();
-    const cleanName = (name || 'Explorer').trim();
+    const { credential } = req.body || {};
+    if (!credential) return res.status(400).json({ error: 'Missing Google credential.' });
+    if (!googleClient) return res.status(503).json({ error: 'Google Sign-In is not configured on the server.' });
 
-    if (!cleanEmail) {
-      return res.status(400).json({ error: 'Email is required for Google login.' });
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      console.warn('Google token verification failed:', err.message);
+      return res.status(401).json({ error: 'Could not verify Google credential.' });
     }
 
-    if (!sql) {
-      return res.status(503).json({ error: 'Neon database is not connected.' });
+    if (!payload?.email || !payload.email_verified) {
+      return res.status(401).json({ error: 'Google account email is not verified.' });
     }
+
+    const cleanEmail = payload.email.trim().toLowerCase();
+    const cleanName = (payload.name || payload.given_name || cleanEmail.split('@')[0]).trim();
+    const avatar = payload.picture || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}&backgroundColor=2b5143&textColor=ffffff`;
+    const initials = cleanName.slice(0, 2).toUpperCase();
+
+    if (!sql) return res.status(503).json({ error: 'Neon database is not connected.' });
 
     let rows = await sql`SELECT * FROM users WHERE email = ${cleanEmail} LIMIT 1`;
     let user;
 
     if (rows.length === 0) {
       const userId = `user_google_${Date.now()}`;
-      const userInitials = initials || cleanName.slice(0, 2).toUpperCase();
-      const userAvatar = avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}&backgroundColor=2b5143&textColor=ffffff`;
       const dummyHash = await bcrypt.hash(`oauth_${Date.now()}`, 10);
-
       await sql`
-        INSERT INTO users (
-          id, name, email, password_hash, avatar, initials, travel_vibe, default_budget, default_travelers, favorite_interests, auth_provider
-        ) VALUES (
-          ${userId}, ${cleanName}, ${cleanEmail}, ${dummyHash}, ${userAvatar}, ${userInitials}, 'Food & Culinary Explorer', 'Mid-range', 2, ${['Food & cafés', 'Culture & heritage']}, 'google'
-        )
+        INSERT INTO users (id, name, email, password_hash, avatar, initials, travel_vibe, default_budget, default_travelers, favorite_interests, auth_provider)
+        VALUES (${userId}, ${cleanName}, ${cleanEmail}, ${dummyHash}, ${avatar}, ${initials}, 'Food & Culinary Explorer', 'Mid-range', 2, ${['Food & cafés', 'Culture & heritage']}, 'google')
       `;
       const created = await sql`SELECT * FROM users WHERE id = ${userId} LIMIT 1`;
       user = created[0];
@@ -378,18 +389,12 @@ router.post('/auth/google', async (req, res) => {
 
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
     const session = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      avatar: user.avatar,
-      initials: user.initials,
+      id: user.id, name: user.name, email: user.email, avatar: user.avatar, initials: user.initials,
       travelVibe: user.travel_vibe || 'Food & Culinary Explorer',
       defaultBudget: user.default_budget || 'Mid-range',
       defaultTravelers: user.default_travelers || 2,
       favoriteInterests: user.favorite_interests || ['Food & cafés'],
-      authProvider: 'google',
-      token,
-      loggedInAt: new Date().toISOString()
+      authProvider: 'google', token, loggedInAt: new Date().toISOString()
     };
 
     return res.json({ user: session, token });
